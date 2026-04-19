@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OSRS Bingo Generator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+
+    <!-- ── Left sidebar ── -->
+    <aside class="sidebar">
+      <div class="panel">
+        <h2>Kaart</h2>
+        <label>Gridgrootte<input type="number" id="grid-size" min="2" value="5"></label>
+        <label class="toggle-label">
+          <input type="checkbox" id="free-cell" checked> Vrije middelste cel
+        </label>
+        <label>Einddatum<input type="date" id="end-date"></label>
+        <label>Achtergrond<input type="file" id="bg-upload" accept="image/*"></label>
+        <button id="bg-clear" class="btn-secondary">Achtergrond verwijderen</button>
+      </div>
+
+      <div class="panel">
+        <h2>Stijl</h2>
+        <label>Randkleur<input type="color" id="style-border-color" value="#c8aa6e"></label>
+        <label>Cel-achtergrond<input type="color" id="style-cell-bg" value="#0a0a14"></label>
+        <label>Tekstkleur<input type="color" id="style-text-color" value="#ffffff"></label>
+        <label>Cel-transparantie: <span id="cell-opacity-val">85</span>%
+          <input type="range" id="style-cell-opacity" min="0" max="100" value="85"></label>
+        <label>Randdikte: <span id="border-width-val">2</span>px
+          <input type="range" id="style-border-width" min="0" max="10" value="2"></label>
+        <label>Lettergrootte: <span id="font-size-val">11</span>px
+          <input type="range" id="style-font-size" min="6" max="24" value="11"></label>
+        <label>Celgrootte: <span id="cell-size-val">80</span>px
+          <input type="range" id="style-cell-size" min="40" max="160" value="80"></label>
+      </div>
+
+      <div class="panel">
+        <h2>Bonuspunten</h2>
+        <label>Rij bonus (pt)<input type="number" id="bonus-row" min="0" value="0" class="pts-input"></label>
+        <label>Kolom bonus (pt)<input type="number" id="bonus-col" min="0" value="0" class="pts-input"></label>
+        <label>Diagonaal &#92; bonus (pt)<input type="number" id="bonus-diag-left" min="0" value="0" class="pts-input"></label>
+        <label>Diagonaal / bonus (pt)<input type="number" id="bonus-diag-right" min="0" value="0" class="pts-input"></label>
+        <label>Hele kaart bonus (pt)<input type="number" id="bonus-fullcard" min="0" value="0" class="pts-input"></label>
+      </div>
+
+      <div class="panel export-panel">
+        <h2>Exporteren</h2>
+        <button id="btn-export" class="btn-primary">&#128229; Download PNG</button>
+        <button id="btn-share" class="btn-secondary">&#128279; Kopieer deellink</button>
+        <span id="share-msg" class="share-msg"></span>
+        <div class="panel-divider"></div>
+        <button id="btn-save-editor" class="btn-secondary">&#128190; Opslaan als JSON</button>
+        <button id="btn-load-editor" class="btn-secondary">&#128196; Kaart laden&hellip;</button>
+        <input type="file" id="load-editor-file" accept=".json" style="display:none">
+      </div>
+    </aside>
+
+    <!-- ── Center ── -->
+    <main class="card-area">
+      <!-- Play bar (play mode only) -->
+      <div id="play-bar" style="display:none">
+        <div class="play-bar-left">
+          <span class="play-bar-brand">OSRS Bingo</span>
+          <span class="play-bar-hint">Klik een item om het af te vinken</span>
+        </div>
+        <div class="play-bar-right">
+          <span id="play-save-msg" class="play-save-msg"></span>
+          <button id="btn-play-import-json" class="btn-secondary">&#128196; Voortgang laden</button>
+          <button id="btn-play-export-json" class="btn-secondary">&#128190; Voortgang opslaan</button>
+          <button id="btn-play-export" class="btn-primary">&#128229; Download PNG</button>
+        </div>
+      </div>
+
+      <!-- Team name above card (play mode only) -->
+      <div id="play-team-header" style="display:none">
+        <input type="text" id="team-name-input" class="team-name-input" placeholder="Teamnaam invoeren...">
+      </div>
+
+      <!-- The bingo card itself -->
+      <div id="bingo-card"></div>
+
+      <!-- Extended play mode panels -->
+      <div id="play-extended" style="display:none">
+
+        <!-- Row 1: countdown + score + legend -->
+        <div class="play-widgets-row">
+          <div class="play-widget">
+            <div class="widget-title">&#9201; Tijd resterend</div>
+            <div id="countdown-display" class="countdown-display">—</div>
+            <div id="countdown-end-label" class="countdown-end-label"></div>
+          </div>
+          <div class="play-widget">
+            <div class="widget-title">&#127942; Punten &nbsp;<span id="score-total" class="score-total-badge">0</span></div>
+            <div id="score-breakdown" class="score-breakdown"></div>
+          </div>
+          <div class="play-widget">
+            <div class="widget-title">&#128203; Puntenschema</div>
+            <div id="points-legend" class="points-legend"></div>
+          </div>
+        </div>
+
+        <!-- Row 2: team -->
+        <div class="play-widget team-widget">
+          <div class="team-widget-top">
+            <div class="widget-title">&#128101; Team</div>
+          </div>
+          <div id="players-list" class="players-list"></div>
+          <div class="add-player-row">
+            <input type="text" id="new-player-name" placeholder="Naam" class="player-field">
+            <button id="btn-add-player" class="btn-secondary btn-sm">+ Speler</button>
+          </div>
+        </div>
+
+        <!-- Row 3: graphs -->
+        <div class="play-graphs-row">
+          <div class="play-widget graph-widget">
+            <div class="widget-title">&#128197; Afvinkhistorie</div>
+            <canvas id="chart-history"></canvas>
+          </div>
+        </div>
+
+      </div><!-- /play-extended -->
+    </main>
+
+    <!-- ── Right sidebar: search ── -->
+    <aside class="search-panel">
+      <div class="panel search-panel-inner">
+        <h2>Items</h2>
+        <p id="search-hint" class="hint">Klik een cel om items toe te voegen.</p>
+
+        <div id="current-items-panel"></div>
+
+        <div id="tile-points-wrap" style="display:none">
+          <label class="info-label pts-label">
+            Tile bonus punten
+            <input type="number" id="tile-points-input" min="0" value="0" class="pts-input">
+          </label>
+        </div>
+
+        <div id="info-field-wrap" style="display:none">
+          <label class="info-label">
+            Info tekst (optioneel)
+            <textarea id="info-textarea" rows="2" placeholder="Bijv. drop-locatie of hint..."></textarea>
+          </label>
+        </div>
+
+        <input type="text" id="search-input" placeholder="Zoek en voeg item toe&hellip;" disabled autocomplete="off">
+        <div id="search-results"></div>
+      </div>
+    </aside>
+
+  </div><!-- /app -->
+
+  <!-- ── Popups (global) ── -->
+
+  <!-- Date picker -->
+  <div id="date-picker-popup" class="popup-overlay" style="display:none">
+    <div class="popup-box">
+      <div class="popup-title">Datum afgevinkt</div>
+      <input type="date" id="date-picker-input" class="date-input">
+      <div class="popup-actions">
+        <button id="date-picker-cancel" class="btn-secondary">Annuleer</button>
+        <button id="date-picker-ok" class="btn-primary">Afvinken ✓</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Info popup -->
+  <div id="info-popup" class="info-popup" style="display:none">
+    <button id="info-popup-close" class="info-popup-close">&#215;</button>
+    <p id="info-popup-text"></p>
+  </div>
+
+  <!-- Hidden file inputs -->
+  <input type="file" id="load-progress-file" accept=".json" style="display:none">
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
+    integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA=="
+    crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="wiki.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
