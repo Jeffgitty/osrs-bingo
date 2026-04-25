@@ -1133,7 +1133,9 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
   if (filledCells < Math.ceil(totalCells / 2)) {
     if (!confirm(`Je kaart heeft maar ${filledCells} van de ${totalCells} cellen ingevuld. Toch publiceren?`)) return;
   }
-  const eventName = document.getElementById('event-name-input').value.trim();
+  const eventName  = document.getElementById('event-name-input').value.trim();
+  const modPw      = document.getElementById('mod-password-input').value;
+  const modPasswordHash = await hashPassword(modPw);
   const payload = {
     v: 3, gridSize: state.gridSize, hasFreeCell: state.hasFreeCell,
     style: state.style, bonuses: state.bonuses, endDate: state.endDate,
@@ -1144,7 +1146,7 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
   };
   showFbLoading('Event aanmaken...');
   try {
-    const eventId = await fbPublishEvent(payload, eventName);
+    const eventId = await fbPublishEvent(payload, eventName, modPasswordHash);
     hideFbLoading();
     const base = location.origin + location.pathname;
     const playerUrl = base + '?event=' + eventId;
@@ -1521,14 +1523,46 @@ function renderModTeams(teams) {
   document.getElementById('mod-team-count').textContent = `${sorted.length} team${sorted.length !== 1 ? 's' : ''}`;
 }
 
+function promptModPassword(expectedHash) {
+  return new Promise(resolve => {
+    const overlay   = document.getElementById('mod-auth-overlay');
+    const input     = document.getElementById('mod-auth-input');
+    const errorEl   = document.getElementById('mod-auth-error');
+    const submitBtn = document.getElementById('mod-auth-submit');
+    input.value = '';
+    errorEl.style.display = 'none';
+    overlay.style.display = 'flex';
+    setTimeout(() => input.focus(), 50);
+
+    async function trySubmit() {
+      const hash = await hashPassword(input.value);
+      if (hash === expectedHash) {
+        overlay.style.display = 'none';
+        resolve(true);
+      } else {
+        errorEl.style.display = 'block';
+        input.select();
+      }
+    }
+    submitBtn.onclick = trySubmit;
+    input.onkeydown = e => { if (e.key === 'Enter') trySubmit(); };
+  });
+}
+
 async function loadModView(eventId) {
   isModMode = true;
   showFbLoading('Moderator view laden...');
   try {
     const data = await fbLoadEvent(eventId);
     if (!data || !data.card) { hideFbLoading(); alert('Event niet gevonden.'); return; }
-    modCardDef = data.card;
     hideFbLoading();
+
+    if (data.modPasswordHash) {
+      const ok = await promptModPassword(data.modPasswordHash);
+      if (!ok) return;
+    }
+
+    modCardDef = data.card;
     document.querySelector('.app').style.display = 'none';
     const modView = document.getElementById('mod-view');
     modView.style.display = 'flex';

@@ -19,11 +19,12 @@ async function fbEnsureAuth() {
   return cred.user;
 }
 
-async function fbPublishEvent(cardPayload, eventName) {
+async function fbPublishEvent(cardPayload, eventName, modPasswordHash) {
   const user = await fbEnsureAuth();
   const ref = await db.collection('events').add({
     card: cardPayload,
     name: eventName || '',
+    modPasswordHash: modPasswordHash || '',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     creatorUid: user.uid,
   });

@@ -38,6 +38,7 @@
         <h2>Publiceren &amp; Export <button class="panel-toggle">&#8250;</button></h2>
         <div class="panel-body">
           <label>Eventnaam<input type="text" id="event-name-input" placeholder="Bijv. Bingo April 2026" maxlength="60"></label>
+          <label>Mod wachtwoord<input type="password" id="mod-password-input" placeholder="Optioneel" maxlength="100"></label>
           <button id="btn-publish-event" class="btn-primary btn-publish btn-publish-main">&#127760; Publiceer als event</button>
           <div id="event-published-wrap" style="display:none">
             <span class="event-link-label">Spelers link:</span>
@@ -275,6 +276,17 @@
         <button id="btn-create-team" class="btn-primary" style="margin-bottom:0">Aanmaken</button>
       </div>
       <div id="team-picker-error" class="team-picker-error" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Mod password prompt -->
+  <div id="mod-auth-overlay" class="fb-overlay" style="display:none">
+    <div class="mod-auth-box">
+      <div class="mod-auth-title">&#128274; Moderator toegang</div>
+      <div class="mod-auth-subtitle">Voer het moderator wachtwoord in om door te gaan.</div>
+      <input type="password" id="mod-auth-input" class="team-picker-input" placeholder="Wachtwoord...">
+      <button id="mod-auth-submit" class="btn-primary" style="margin-bottom:0">Toegang</button>
+      <div id="mod-auth-error" class="tp-pw-error" style="display:none;text-align:center">Verkeerd wachtwoord</div>
     </div>
   </div>
 
