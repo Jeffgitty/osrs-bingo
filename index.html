@@ -37,6 +37,7 @@
       <div class="panel export-panel" data-collapsible>
         <h2>Publiceren &amp; Export <button class="panel-toggle">&#8250;</button></h2>
         <div class="panel-body">
+          <label>Eventnaam<input type="text" id="event-name-input" placeholder="Bijv. Bingo April 2026" maxlength="60"></label>
           <button id="btn-publish-event" class="btn-primary btn-publish btn-publish-main">&#127760; Publiceer als event</button>
           <div id="event-published-wrap" style="display:none">
             <span class="event-link-label">Spelers link:</span>
@@ -219,6 +220,8 @@
       <span id="mod-event-id" class="mod-event-id"></span>
       <span id="mod-team-count" class="mod-team-count"></span>
       <button id="btn-close-event" class="btn-danger btn-sm" style="margin-bottom:0">&#128683; Sluit event</button>
+      <button id="btn-reopen-event" class="btn-secondary btn-sm" style="margin-bottom:0;display:none">&#9654; Heropenen</button>
+      <button id="btn-delete-event" class="btn-danger btn-sm btn-delete" style="margin-bottom:0">&#128465; Verwijder</button>
     </div>
     <div id="mod-teams-grid" class="mod-teams-grid"></div>
   </div>
@@ -271,6 +274,20 @@
         <button id="btn-create-team" class="btn-primary">Aanmaken</button>
       </div>
       <div id="team-picker-error" class="team-picker-error" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Mod team detail popup -->
+  <div id="mod-detail-overlay" class="fb-overlay" style="display:none">
+    <div class="mod-detail-box">
+      <div class="mod-detail-header">
+        <div class="mod-detail-title">
+          <span id="mod-detail-team-name" class="mod-detail-team-name"></span>
+          <span id="mod-detail-team-score" class="mod-detail-team-score"></span>
+        </div>
+        <button id="mod-detail-close" class="mod-detail-close">&#215;</button>
+      </div>
+      <div id="mod-detail-content" class="mod-detail-content"></div>
     </div>
   </div>
 

@@ -19,14 +19,31 @@ async function fbEnsureAuth() {
   return cred.user;
 }
 
-async function fbPublishEvent(cardPayload) {
+async function fbPublishEvent(cardPayload, eventName) {
   const user = await fbEnsureAuth();
   const ref = await db.collection('events').add({
     card: cardPayload,
+    name: eventName || '',
     createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     creatorUid: user.uid,
   });
   return ref.id;
+}
+
+async function fbReopenEvent(eventId) {
+  await fbEnsureAuth();
+  await db.collection('events').doc(eventId).update({ closed: false });
+}
+
+async function fbDeleteEvent(eventId) {
+  await fbEnsureAuth();
+  const teamsSnap = await db.collection('events').doc(eventId).collection('teams').get();
+  if (teamsSnap.docs.length > 0) {
+    const batch = db.batch();
+    teamsSnap.docs.forEach(doc => batch.delete(doc.ref));
+    await batch.commit();
+  }
+  await db.collection('events').doc(eventId).delete();
 }
 
 async function fbLoadEvent(eventId) {

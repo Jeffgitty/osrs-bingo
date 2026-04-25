@@ -1118,6 +1118,16 @@ function hideFbLoading() {
 }
 
 document.getElementById('btn-publish-event').addEventListener('click', async () => {
+  const filledCells = state.cells.filter(c => cellHasItems(c)).length;
+  const totalCells = state.gridSize * state.gridSize - (state.hasFreeCell ? 1 : 0);
+  if (filledCells === 0) {
+    alert('Je kaart heeft geen ingevulde cellen. Voeg eerst items toe.');
+    return;
+  }
+  if (filledCells < Math.ceil(totalCells / 2)) {
+    if (!confirm(`Je kaart heeft maar ${filledCells} van de ${totalCells} cellen ingevuld. Toch publiceren?`)) return;
+  }
+  const eventName = document.getElementById('event-name-input').value.trim();
   const payload = {
     v: 3, gridSize: state.gridSize, hasFreeCell: state.hasFreeCell,
     style: state.style, bonuses: state.bonuses, endDate: state.endDate,
@@ -1128,7 +1138,7 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
   };
   showFbLoading('Event aanmaken...');
   try {
-    const eventId = await fbPublishEvent(payload);
+    const eventId = await fbPublishEvent(payload, eventName);
     hideFbLoading();
     const base = location.origin + location.pathname;
     const playerUrl = base + '?event=' + eventId;
@@ -1137,7 +1147,7 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
     document.getElementById('mod-url-display').value = modUrl;
     document.getElementById('event-published-wrap').style.display = 'flex';
     document.getElementById('event-published-wrap').style.flexDirection = 'column';
-    saveMyEvent(eventId, playerUrl, modUrl);
+    saveMyEvent(eventId, playerUrl, modUrl, eventName);
   } catch (err) {
     hideFbLoading();
     alert('Publiceren mislukt: ' + err.message);
@@ -1432,6 +1442,7 @@ function buildTeamCard(team, cardDef) {
     card.appendChild(pl);
   }
 
+  card.addEventListener('click', () => showModTeamDetail(team, cardDef));
   return card;
 }
 
@@ -1459,25 +1470,49 @@ async function loadModView(eventId) {
     document.querySelector('.app').style.display = 'none';
     const modView = document.getElementById('mod-view');
     modView.style.display = 'flex';
-    document.getElementById('mod-event-id').textContent = 'Event: ' + eventId;
+    document.getElementById('mod-event-id').textContent = data.name || ('Event: ' + eventId);
 
-    const closeBtn = document.getElementById('btn-close-event');
-    if (data.closed) {
-      closeBtn.disabled = true;
-      closeBtn.textContent = '✓ Event gesloten';
-    } else {
-      closeBtn.addEventListener('click', async () => {
-        if (!confirm('Weet je zeker dat je dit event wil sluiten? Spelers kunnen dan niet meer afvinken.')) return;
-        try {
-          await fbCloseEvent(eventId);
-          closeBtn.disabled = true;
-          closeBtn.textContent = '✓ Event gesloten';
-        } catch (err) {
-          alert('Sluiten mislukt: ' + err.message);
-        }
-      });
+    const closeBtn  = document.getElementById('btn-close-event');
+    const reopenBtn = document.getElementById('btn-reopen-event');
+    const deleteBtn = document.getElementById('btn-delete-event');
+
+    function applyClosedState(closed) {
+      closeBtn.style.display  = closed ? 'none' : '';
+      reopenBtn.style.display = closed ? '' : 'none';
     }
+    applyClosedState(!!data.closed);
 
+    closeBtn.addEventListener('click', async () => {
+      if (!confirm('Weet je zeker dat je dit event wil sluiten? Spelers kunnen dan niet meer afvinken.')) return;
+      try { await fbCloseEvent(eventId); }
+      catch (err) { alert('Sluiten mislukt: ' + err.message); }
+    });
+
+    reopenBtn.addEventListener('click', async () => {
+      if (!confirm('Event heropenen? Spelers kunnen dan weer afvinken.')) return;
+      try { await fbReopenEvent(eventId); }
+      catch (err) { alert('Heropenen mislukt: ' + err.message); }
+    });
+
+    deleteBtn.addEventListener('click', async () => {
+      if (!confirm('Weet je zeker dat je dit event permanent wil verwijderen?')) return;
+      if (!confirm('Alle teams en voortgang worden ook verwijderd. Dit kan niet ongedaan worden gemaakt.')) return;
+      try {
+        showFbLoading('Event verwijderen...');
+        await fbDeleteEvent(eventId);
+        hideFbLoading();
+        try {
+          const stored = JSON.parse(localStorage.getItem('bingo-my-events') || '[]');
+          localStorage.setItem('bingo-my-events', JSON.stringify(stored.filter(e => e.id !== eventId)));
+        } catch {}
+        window.location.href = location.pathname;
+      } catch (err) {
+        hideFbLoading();
+        alert('Verwijderen mislukt: ' + err.message);
+      }
+    });
+
+    fbListenEventClosed(eventId, applyClosedState);
     fbListenAllTeams(eventId, renderModTeams);
   } catch (err) {
     hideFbLoading();
@@ -1485,13 +1520,100 @@ async function loadModView(eventId) {
   }
 }
 
+function showModTeamDetail(team, cardDef) {
+  const n = cardDef.gridSize || 5;
+  const freeIdx = cardDef.hasFreeCell ? Math.floor(n * n / 2) : -1;
+  const cells = cardDef.cells || [];
+  let crossed = [];
+  try { crossed = typeof team.crossed === 'string' ? JSON.parse(team.crossed) : (team.crossed || []); } catch {}
+
+  const lineSet = getCompletedLineCellsForCard(cardDef, crossed);
+  document.getElementById('mod-detail-team-name').textContent = team.name;
+  document.getElementById('mod-detail-team-score').textContent = `${team.score || 0} pt · ${team.tilesComplete || 0} tiles`;
+
+  const content = document.getElementById('mod-detail-content');
+  content.innerHTML = '';
+
+  const grid = document.createElement('div');
+  grid.className = 'mod-detail-card';
+  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+
+  for (let i = 0; i < n * n; i++) {
+    const isFree    = i === freeIdx;
+    const complete  = isCellCompleteForCard(cells, crossed, i, freeIdx);
+    const inLine    = lineSet.has(i);
+    const cellData  = cells[i];
+    const cArr      = crossed[i] || [];
+
+    const cellEl = document.createElement('div');
+    const cls = ['mod-detail-cell'];
+    if (isFree)              cls.push('mod-detail-free');
+    if (complete && !isFree) cls.push('mod-detail-complete');
+    if (inLine)              cls.push('mod-detail-line');
+    cellEl.className = cls.join(' ');
+
+    if (isFree) {
+      const lbl = document.createElement('span');
+      lbl.className = 'mod-detail-free-label';
+      lbl.textContent = 'FREE';
+      cellEl.appendChild(lbl);
+    } else if (cellData && cellData.items && cellData.items.length) {
+      cellData.items.forEach((item, itemIdx) => {
+        const cv        = cArr[itemIdx];
+        const checked   = cv && (typeof cv === 'object' ? cv.checked : !!cv);
+        const date      = cv && typeof cv === 'object' && cv.date ? cv.date : null;
+
+        const row = document.createElement('div');
+        row.className = 'mod-detail-item ' + (checked ? 'mod-item-checked' : 'mod-item-unchecked');
+
+        const chk = document.createElement('span');
+        chk.className = 'mod-detail-check';
+        chk.textContent = checked ? '✓' : '○';
+        row.appendChild(chk);
+
+        const nm = document.createElement('span');
+        nm.className = 'mod-detail-item-name';
+        nm.textContent = item.name;
+        row.appendChild(nm);
+
+        if (date) {
+          const dt = document.createElement('span');
+          dt.className = 'mod-detail-date';
+          dt.textContent = formatDateShort(date);
+          row.appendChild(dt);
+        }
+        cellEl.appendChild(row);
+      });
+    }
+    grid.appendChild(cellEl);
+  }
+  content.appendChild(grid);
+
+  if (team.players && team.players.length) {
+    const pl = document.createElement('div');
+    pl.className = 'mod-detail-players';
+    pl.textContent = '👥 ' + team.players.map(p => p.name).join(', ');
+    content.appendChild(pl);
+  }
+
+  document.getElementById('mod-detail-overlay').style.display = 'flex';
+}
+
+document.getElementById('mod-detail-close').addEventListener('click', () => {
+  document.getElementById('mod-detail-overlay').style.display = 'none';
+});
+document.getElementById('mod-detail-overlay').addEventListener('click', e => {
+  if (e.target === document.getElementById('mod-detail-overlay'))
+    document.getElementById('mod-detail-overlay').style.display = 'none';
+});
+
 // ── My events (localStorage) ──────────────────────
 
-function saveMyEvent(id, eventUrl, modUrl) {
+function saveMyEvent(id, eventUrl, modUrl, name) {
   try {
     const events = JSON.parse(localStorage.getItem('bingo-my-events') || '[]');
     const filtered = events.filter(e => e.id !== id);
-    filtered.unshift({ id, createdAt: new Date().toISOString(), eventUrl, modUrl });
+    filtered.unshift({ id, name: name || '', createdAt: new Date().toISOString(), eventUrl, modUrl });
     localStorage.setItem('bingo-my-events', JSON.stringify(filtered.slice(0, 20)));
   } catch {}
   renderMyEvents();
@@ -1508,11 +1630,13 @@ function renderMyEvents() {
     }
     el.innerHTML = events.map((e, idx) => {
       const d = new Date(e.createdAt);
-      const label = `${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      const dateStr = `${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      const primary = e.name ? escHtml(e.name) : dateStr;
+      const secondary = e.name ? dateStr : escHtml(e.id);
       return `<div class="my-event-row">
         <div class="my-event-info">
-          <span class="my-event-date">${label}</span>
-          <span class="my-event-id">${escHtml(e.id)}</span>
+          <span class="my-event-date">${primary}</span>
+          <span class="my-event-id">${secondary}</span>
         </div>
         <div class="my-event-actions">
           <a href="${escHtml(e.modUrl)}" target="_blank" class="btn-link-sm" title="Open moderator view">&#9876; Mod</a>
