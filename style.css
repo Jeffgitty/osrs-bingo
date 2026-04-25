@@ -1369,6 +1369,51 @@ label.pts-label {
   gap: 8px;
 }
 
+.team-picker-new-col {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tp-lock {
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.tp-password-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px 8px;
+  background: rgba(0,0,0,0.2);
+  border-radius: 0 0 6px 6px;
+  margin-top: -6px;
+  flex-wrap: wrap;
+}
+
+.tp-password-input {
+  flex: 1;
+  min-width: 100px;
+  background: #100a02;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  color: var(--text);
+  padding: 6px 8px;
+  font-size: 12px;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s;
+}
+
+.tp-password-input:focus { border-color: var(--accent); }
+
+.tp-pw-error {
+  width: 100%;
+  font-size: 11px;
+  color: #e05555;
+  padding-top: 2px;
+}
+
 .team-picker-input {
   flex: 1;
   background: #100a02;

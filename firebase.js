@@ -52,13 +52,14 @@ async function fbLoadEvent(eventId) {
   return doc.data();
 }
 
-async function fbCreateTeam(eventId, teamName) {
+async function fbCreateTeam(eventId, teamName, passwordHash) {
   await fbEnsureAuth();
   const ref = await db.collection('events').doc(eventId).collection('teams').add({
     name: teamName,
     players: [],
     crossed: '[]',
     score: 0,
+    passwordHash: passwordHash || '',
     lastUpdated: firebase.firestore.FieldValue.serverTimestamp(),
   });
   return ref.id;

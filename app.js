@@ -896,6 +896,12 @@ function escHtml(s) {
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
 }
 
+async function hashPassword(pw) {
+  if (!pw) return '';
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
 // ── Charts ────────────────────────────────────────
 
 function updateCharts() {
@@ -1239,23 +1245,79 @@ function renderTeamPickerList(teams) {
     return;
   }
   teams.forEach(team => {
+    const isLocked = !!team.passwordHash;
+    const wrapper = document.createElement('div');
+
     const btn = document.createElement('button');
     btn.className = 'team-picker-team-btn';
-    btn.innerHTML = `<span class="tp-name">${escHtml(team.name)}</span><span class="tp-score">${team.score || 0} pt</span>`;
-    btn.addEventListener('click', async () => {
-      document.getElementById('team-picker-overlay').style.display = 'none';
-      await joinTeam(fbEventId, team.id);
-    });
-    el.appendChild(btn);
+    btn.innerHTML = `<span class="tp-name">${escHtml(team.name)}${isLocked ? ' <span class="tp-lock">🔒</span>' : ''}</span><span class="tp-score">${team.score || 0} pt</span>`;
+
+    if (!isLocked) {
+      btn.addEventListener('click', async () => {
+        document.getElementById('team-picker-overlay').style.display = 'none';
+        await joinTeam(fbEventId, team.id);
+      });
+      wrapper.appendChild(btn);
+    } else {
+      const pwRow = document.createElement('div');
+      pwRow.className = 'tp-password-row';
+      pwRow.style.display = 'none';
+
+      const pwInput = document.createElement('input');
+      pwInput.type = 'password';
+      pwInput.className = 'tp-password-input';
+      pwInput.placeholder = 'Wachtwoord...';
+
+      const joinBtn = document.createElement('button');
+      joinBtn.className = 'btn-primary';
+      joinBtn.style.cssText = 'width:auto;margin-bottom:0;padding:6px 12px;white-space:nowrap';
+      joinBtn.textContent = 'Doe mee';
+
+      const pwError = document.createElement('div');
+      pwError.className = 'tp-pw-error';
+      pwError.style.display = 'none';
+      pwError.textContent = 'Verkeerd wachtwoord';
+
+      pwRow.appendChild(pwInput);
+      pwRow.appendChild(joinBtn);
+      pwRow.appendChild(pwError);
+
+      btn.addEventListener('click', () => {
+        const open = pwRow.style.display !== 'none';
+        pwRow.style.display = open ? 'none' : 'flex';
+        if (!open) { pwInput.value = ''; pwError.style.display = 'none'; pwInput.focus(); }
+      });
+
+      async function attemptJoin() {
+        const hash = await hashPassword(pwInput.value);
+        if (hash !== team.passwordHash) {
+          pwError.style.display = 'block';
+          pwInput.select();
+          return;
+        }
+        document.getElementById('team-picker-overlay').style.display = 'none';
+        await joinTeam(fbEventId, team.id);
+      }
+
+      joinBtn.addEventListener('click', attemptJoin);
+      pwInput.addEventListener('keydown', e => { if (e.key === 'Enter') attemptJoin(); });
+
+      wrapper.appendChild(btn);
+      wrapper.appendChild(pwRow);
+    }
+
+    el.appendChild(wrapper);
   });
 }
 
 document.getElementById('btn-create-team').addEventListener('click', async () => {
   const name = document.getElementById('new-team-name-input').value.trim();
   if (!name) return;
+  const pw = document.getElementById('new-team-password-input').value;
+  const passwordHash = await hashPassword(pw);
   document.getElementById('team-picker-error').style.display = 'none';
   try {
-    const teamId = await fbCreateTeam(fbEventId, name);
+    const teamId = await fbCreateTeam(fbEventId, name, passwordHash);
     document.getElementById('team-picker-overlay').style.display = 'none';
     await joinTeam(fbEventId, teamId);
   } catch (err) {
