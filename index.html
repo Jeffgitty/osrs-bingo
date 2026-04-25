@@ -4,9 +4,18 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>OSRS Bingo Generator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Connection status banner -->
+  <div id="connection-banner" class="connection-banner" style="display:none">
+    &#9888; Verbinding verbroken &mdash; wijzigingen worden niet gesynchroniseerd
+  </div>
+
   <div class="app">
 
     <!-- ── Left sidebar ── -->
@@ -55,6 +64,20 @@
         <button id="btn-save-editor" class="btn-secondary">&#128190; Opslaan als JSON</button>
         <button id="btn-load-editor" class="btn-secondary">&#128196; Kaart laden&hellip;</button>
         <input type="file" id="load-editor-file" accept=".json" style="display:none">
+        <div class="panel-divider"></div>
+        <button id="btn-publish-event" class="btn-primary btn-publish">&#127760; Publiceer als event</button>
+        <div id="event-published-wrap" style="display:none">
+          <span class="event-link-label">Spelers link:</span>
+          <div class="event-link-row">
+            <input type="text" id="event-url-display" class="event-url-display" readonly>
+            <button id="btn-copy-event-url" class="btn-secondary btn-sm">Kopieer</button>
+          </div>
+          <span class="event-link-label" style="margin-top:6px">Moderator link:</span>
+          <div class="event-link-row">
+            <input type="text" id="mod-url-display" class="event-url-display" readonly>
+            <button id="btn-copy-mod-url" class="btn-secondary btn-sm">Kopieer</button>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -77,6 +100,14 @@
       <!-- Team name above card (play mode only) -->
       <div id="play-team-header" style="display:none">
         <input type="text" id="team-name-input" class="team-name-input" placeholder="Teamnaam invoeren...">
+      </div>
+
+      <!-- Progress bar (play mode only) -->
+      <div id="play-progress-wrap" style="display:none">
+        <div class="progress-bar-outer">
+          <div id="progress-bar-fill" class="progress-bar-fill"></div>
+        </div>
+        <span id="progress-label" class="progress-label">0 / 0 tiles</span>
       </div>
 
       <!-- The bingo card itself -->
@@ -102,7 +133,15 @@
           </div>
         </div>
 
-        <!-- Row 2: team -->
+        <!-- Row 2: scoreboard (firebase mode only) -->
+        <div id="play-scoreboard-wrap" style="display:none">
+          <div class="play-widget scoreboard-widget">
+            <div class="widget-title">&#127942; Live scoreboard</div>
+            <div id="scoreboard-list" class="scoreboard-list"></div>
+          </div>
+        </div>
+
+        <!-- Row 3: team -->
         <div class="play-widget team-widget">
           <div class="team-widget-top">
             <div class="widget-title">&#128101; Team</div>
@@ -114,7 +153,7 @@
           </div>
         </div>
 
-        <!-- Row 3: graphs -->
+        <!-- Row 4: graphs -->
         <div class="play-graphs-row">
           <div class="play-widget graph-widget">
             <div class="widget-title">&#128197; Afvinkhistorie</div>
@@ -154,6 +193,24 @@
 
   </div><!-- /app -->
 
+  <!-- ── Moderator view ── -->
+  <div id="mod-view" style="display:none">
+    <div class="mod-header">
+      <span class="mod-title">&#9876; Moderator View</span>
+      <span id="mod-event-id" class="mod-event-id"></span>
+      <span id="mod-team-count" class="mod-team-count"></span>
+    </div>
+    <div id="mod-teams-grid" class="mod-teams-grid"></div>
+  </div>
+
+  <!-- ── Celebration overlay ── -->
+  <div id="celebration-overlay" class="celebration-overlay">
+    <div class="celebration-box">
+      <div id="celebration-title" class="celebration-title">BINGO!</div>
+      <div id="celebration-subtitle" class="celebration-subtitle"></div>
+    </div>
+  </div>
+
   <!-- ── Popups (global) ── -->
 
   <!-- Date picker -->
@@ -174,6 +231,29 @@
     <p id="info-popup-text"></p>
   </div>
 
+  <!-- Firebase loading overlay -->
+  <div id="fb-loading-overlay" class="fb-overlay" style="display:none">
+    <div class="fb-loading-box">
+      <div class="fb-spinner"></div>
+      <div id="fb-loading-text" class="fb-loading-text">Laden...</div>
+    </div>
+  </div>
+
+  <!-- Team picker overlay -->
+  <div id="team-picker-overlay" class="fb-overlay" style="display:none">
+    <div class="team-picker-box">
+      <div class="team-picker-title">&#128101; Kies je team</div>
+      <div id="team-picker-loading" class="team-picker-loading">Teams ophalen...</div>
+      <div id="team-picker-list" class="team-picker-list"></div>
+      <div class="team-picker-sep">— of maak een nieuw team aan —</div>
+      <div class="team-picker-new-row">
+        <input type="text" id="new-team-name-input" placeholder="Teamnaam..." class="team-picker-input">
+        <button id="btn-create-team" class="btn-primary">Aanmaken</button>
+      </div>
+      <div id="team-picker-error" class="team-picker-error" style="display:none"></div>
+    </div>
+  </div>
+
   <!-- Hidden file inputs -->
   <input type="file" id="load-progress-file" accept=".json" style="display:none">
 
@@ -181,7 +261,11 @@
     integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA=="
     crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
   <script src="wiki.js"></script>
+  <script src="firebase.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

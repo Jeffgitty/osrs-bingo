@@ -8,7 +8,7 @@ const state = {
   hasFreeCell: true,
   background: null,
   style: {
-    borderColor: '#c8aa6e', cellBg: '#0a0a14', cellOpacity: 85,
+    borderColor: '#c8aa6e', cellBg: '#0a0804', cellOpacity: 85,
     textColor: '#ffffff', borderWidth: 2, fontSize: 11, cellSize: 80,
   },
   cells: [],
@@ -21,12 +21,27 @@ const state = {
 
 // Team state — persisted separately in localStorage
 let teamState = { teamName: '', players: [] };
-// players: [{name}]
 
 let currentHash = '';
 let pendingCheck = null;   // {cellIndex, itemIndex}
 let countdownInterval = null;
 let historyChart = null;
+
+// ── Firebase event mode ───────────────────────────
+let isFbMode = false;
+let fbEventId = null;
+let fbTeamId = null;
+let fbUnsubTeam = null;
+let fbUnsubScoreboard = null;
+let _fbIncoming = false;
+
+// ── Moderator view ────────────────────────────────
+let isModMode = false;
+let modCardDef = null;
+
+// ── Completion tracking ───────────────────────────
+let _prevLineCount = 0;
+let _prevFullCard = false;
 
 // ── DOM refs ──────────────────────────────────────
 const bingoCard     = document.getElementById('bingo-card');
@@ -85,6 +100,37 @@ function isCellComplete(idx) {
   const cell = state.cells[idx];
   if (!cellHasItems(cell)) return false;
   return cell.items.every((_, i) => isItemChecked(idx, i));
+}
+
+// ── Line highlights ───────────────────────────────
+
+function getCompletedLineCells() {
+  const n = state.gridSize;
+  const set = new Set();
+  const complete = i => isCellComplete(i);
+  for (let r = 0; r < n; r++) {
+    const idx = Array.from({length: n}, (_, c) => r * n + c);
+    if (idx.every(complete)) idx.forEach(i => set.add(i));
+  }
+  for (let c = 0; c < n; c++) {
+    const idx = Array.from({length: n}, (_, r) => r * n + c);
+    if (idx.every(complete)) idx.forEach(i => set.add(i));
+  }
+  if (n >= 2) {
+    const dl = Array.from({length: n}, (_, i) => i * n + i);
+    if (dl.every(complete)) dl.forEach(i => set.add(i));
+    const dr = Array.from({length: n}, (_, i) => i * n + (n - 1 - i));
+    if (dr.every(complete)) dr.forEach(i => set.add(i));
+  }
+  return set;
+}
+
+function updateLineHighlights() {
+  if (!state.playMode) return;
+  const set = getCompletedLineCells();
+  bingoCard.querySelectorAll('.bingo-cell').forEach((el, i) => {
+    el.classList.toggle('line-complete', set.has(i));
+  });
 }
 
 // ── Score calculation ─────────────────────────────
@@ -148,6 +194,11 @@ function updateScore() {
   el.innerHTML = rows.filter(r => r[1] > 0).map(r =>
     `<div class="score-row"><span>${r[0]}</span><span>${r[1]} pt${r[2] ? ' <em>' + r[2] + '</em>' : ''}</span></div>`
   ).join('') || '<div class="score-empty">Nog geen punten</div>';
+
+  if (state.playMode) {
+    updateProgressBar();
+    updateLineHighlights();
+  }
 }
 
 function updatePointsLegend() {
@@ -155,7 +206,6 @@ function updatePointsLegend() {
   const lines = [];
   const n = state.gridSize;
 
-  // Per-item points
   for (let i = 0; i < n * n; i++) {
     if (i === getFreeIndex()) continue;
     const cell = state.cells[i];
@@ -177,6 +227,82 @@ function updatePointsLegend() {
   el.innerHTML = lines.length ? lines.join('') : '<div class="score-empty">Geen punten ingesteld</div>';
 }
 
+// ── Progress bar ──────────────────────────────────
+
+function countCompletedTiles() {
+  const n = state.gridSize;
+  let count = 0;
+  for (let i = 0; i < n * n; i++) {
+    if (i !== getFreeIndex() && isCellComplete(i)) count++;
+  }
+  return count;
+}
+
+function updateProgressBar() {
+  const n = state.gridSize;
+  const total = n * n - (state.hasFreeCell ? 1 : 0);
+  const complete = countCompletedTiles();
+  const pct = total > 0 ? Math.round(complete / total * 100) : 0;
+  const fill = document.getElementById('progress-bar-fill');
+  const label = document.getElementById('progress-label');
+  if (fill) fill.style.width = pct + '%';
+  if (label) label.textContent = `${complete} / ${total} tiles (${pct}%)`;
+}
+
+// ── Completion celebration ────────────────────────
+
+function countCompletedLines() {
+  const n = state.gridSize;
+  let count = 0;
+  const complete = i => isCellComplete(i);
+  for (let r = 0; r < n; r++) {
+    if (Array.from({length: n}, (_, c) => r * n + c).every(complete)) count++;
+  }
+  for (let c = 0; c < n; c++) {
+    if (Array.from({length: n}, (_, r) => r * n + c).every(complete)) count++;
+  }
+  if (n >= 2) {
+    const dl = Array.from({length: n}, (_, i) => i * n + i);
+    if (dl.every(complete)) count++;
+    const dr = Array.from({length: n}, (_, i) => i * n + (n - 1 - i));
+    if (dr.every(complete)) count++;
+  }
+  return count;
+}
+
+function initCompletionTracking() {
+  _prevLineCount = countCompletedLines();
+  const { bd } = calculateScore();
+  _prevFullCard = bd.fullCard > 0;
+}
+
+function triggerCelebration(title, subtitle, type) {
+  const overlay = document.getElementById('celebration-overlay');
+  const titleEl = document.getElementById('celebration-title');
+  const subtitleEl = document.getElementById('celebration-subtitle');
+  titleEl.textContent = title;
+  subtitleEl.textContent = subtitle;
+  overlay.className = 'celebration-overlay celebration-' + type + ' celebration-active';
+  clearTimeout(overlay._t);
+  overlay._t = setTimeout(() => {
+    overlay.className = 'celebration-overlay';
+  }, 2400);
+}
+
+function checkCompletionCelebration() {
+  const lineCount = countCompletedLines();
+  const { bd } = calculateScore();
+  const fullCard = bd.fullCard > 0 || Array.from({length: state.gridSize * state.gridSize}, (_, i) => i).every(isCellComplete);
+  if (fullCard && !_prevFullCard) {
+    triggerCelebration('BINGO!', 'Volle kaart voltooid! ★', 'full');
+  } else if (lineCount > _prevLineCount) {
+    const diff = lineCount - _prevLineCount;
+    triggerCelebration('BINGO!', diff > 1 ? `${diff} lijnen voltooid!` : 'Lijn voltooid!', 'line');
+  }
+  _prevLineCount = lineCount;
+  _prevFullCard = fullCard;
+}
+
 // ── Rendering ─────────────────────────────────────
 
 function renderGrid() {
@@ -186,6 +312,7 @@ function renderGrid() {
   for (let i = 0; i < state.gridSize * state.gridSize; i++) {
     bingoCard.appendChild(buildCell(i));
   }
+  if (state.playMode) updateLineHighlights();
 }
 
 function buildCell(index) {
@@ -226,7 +353,6 @@ function buildCell(index) {
         nameEl.textContent = item.name;
         itemEl.appendChild(nameEl);
       }
-      // Date chip (play mode, checked)
       if (state.playMode && checked && crossed[itemIdx].date) {
         const chip = document.createElement('span');
         chip.className = 'date-chip';
@@ -242,10 +368,8 @@ function buildCell(index) {
 
     cell.appendChild(grid);
 
-    // All-crossed highlight
     if (state.playMode && isCellComplete(index)) cell.classList.add('all-crossed');
 
-    // Points badge (play mode, if tile has points value)
     const totalCellPts = (data.tilePoints || 0) + data.items.reduce((s, it) => s + (it.points || 0), 0);
     if (state.playMode && totalCellPts > 0 && !isCellComplete(index)) {
       const badge = document.createElement('span');
@@ -254,7 +378,6 @@ function buildCell(index) {
       cell.appendChild(badge);
     }
 
-    // Info btn/badge
     if (data.info) {
       if (state.playMode) {
         const btn = document.createElement('button');
@@ -294,11 +417,12 @@ function buildCell(index) {
 function refreshCell(index) {
   const cells = bingoCard.querySelectorAll('.bingo-cell');
   if (cells[index]) bingoCard.replaceChild(buildCell(index), cells[index]);
+  if (state.playMode) updateLineHighlights();
 }
 
 function formatDateShort(d) {
   if (!d) return '';
-  const [y, m, day] = d.split('-');
+  const [, m, day] = d.split('-');
   return `${day}/${m}`;
 }
 
@@ -307,13 +431,11 @@ function formatDateShort(d) {
 function handleItemClick(cellIndex, itemIndex) {
   const cur = state.crossed[cellIndex][itemIndex];
   if (cur && cur.checked) {
-    // Uncheck immediately
     state.crossed[cellIndex][itemIndex] = { checked: false, date: null };
     refreshCell(cellIndex);
     saveProgress(); updateScore(); updateCharts();
     return;
   }
-  // Show date picker
   pendingCheck = { cellIndex, itemIndex };
   document.getElementById('date-picker-input').value = today();
   document.getElementById('date-picker-popup').style.display = 'flex';
@@ -328,6 +450,7 @@ document.getElementById('date-picker-ok').addEventListener('click', () => {
   state.crossed[cellIndex][itemIndex] = { checked: true, date };
   refreshCell(cellIndex);
   saveProgress(); updateScore(); updateCharts();
+  checkCompletionCelebration();
   flashSaved();
 });
 
@@ -336,7 +459,6 @@ document.getElementById('date-picker-cancel').addEventListener('click', () => {
   document.getElementById('date-picker-popup').style.display = 'none';
 });
 
-// Close popup on overlay click
 document.getElementById('date-picker-popup').addEventListener('click', e => {
   if (e.target === document.getElementById('date-picker-popup')) {
     pendingCheck = null;
@@ -387,6 +509,13 @@ function renderCurrentItems(index) {
   data.items.forEach((item, itemIdx) => {
     const row = document.createElement('div');
     row.className = 'current-item-row';
+    row.draggable = true;
+
+    const handle = document.createElement('span');
+    handle.className = 'drag-handle';
+    handle.textContent = '⠿';
+    handle.title = 'Sleep om te herordenen';
+    row.appendChild(handle);
 
     if (item.imageUrl) {
       const img = document.createElement('img');
@@ -397,7 +526,6 @@ function renderCurrentItems(index) {
     name.className = 'current-item-name'; name.textContent = item.name;
     row.appendChild(name);
 
-    // Points input per item
     const ptsWrap = document.createElement('label');
     ptsWrap.className = 'item-pts-label';
     ptsWrap.title = 'Punten voor dit item';
@@ -422,6 +550,35 @@ function renderCurrentItems(index) {
       refreshCell(index); updateSearchPanel();
     });
     row.appendChild(del);
+
+    // Drag-and-drop events
+    row.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', String(itemIdx));
+      e.dataTransfer.effectAllowed = 'move';
+      row.classList.add('dragging');
+    });
+    row.addEventListener('dragend', () => row.classList.remove('dragging'));
+    row.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      row.classList.add('drag-over');
+    });
+    row.addEventListener('dragleave', () => row.classList.remove('drag-over'));
+    row.addEventListener('drop', e => {
+      e.preventDefault();
+      row.classList.remove('drag-over');
+      const fromIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      if (isNaN(fromIdx) || fromIdx === itemIdx) return;
+      const items = state.cells[index].items;
+      const [moved] = items.splice(fromIdx, 1);
+      items.splice(itemIdx, 0, moved);
+      const crossedArr = state.crossed[index] || [];
+      const [movedC] = crossedArr.splice(fromIdx, 1);
+      crossedArr.splice(itemIdx, 0, movedC);
+      refreshCell(index);
+      renderCurrentItems(index);
+    });
+
     panel.appendChild(row);
   });
 }
@@ -544,7 +701,6 @@ async function applyLoadedState(loaded) {
   if (loaded.bonuses) Object.assign(state.bonuses, loaded.bonuses);
   state.endDate = loaded.endDate || '';
 
-  // Support v2 (no points) and v3 (with points)
   state.cells = (Array.isArray(loaded.cells) ? loaded.cells : []).map(c =>
     c ? { items: c.items.map(it => ({ name: it.name, imageUrl: '', points: it.points || 0 })),
           info: c.info || '', tilePoints: c.tilePoints || 0 } : null
@@ -601,7 +757,14 @@ document.getElementById('btn-share').addEventListener('click', () => {
 // ── Play mode: progress save/load ─────────────────
 
 function saveProgress() {
-  try { localStorage.setItem('bingo-crossed-' + currentHash, JSON.stringify(state.crossed)); } catch {}
+  if (!isFbMode) {
+    try { localStorage.setItem('bingo-crossed-' + currentHash, JSON.stringify(state.crossed)); } catch {}
+  }
+  if (isFbMode && fbEventId && fbTeamId && !_fbIncoming) {
+    const { total } = calculateScore();
+    const tilesComplete = countCompletedTiles();
+    fbSaveTeamProgress(fbEventId, fbTeamId, state.crossed, total, teamState.players, teamState.teamName, tilesComplete).catch(() => {});
+  }
 }
 
 function loadProgress(hash) {
@@ -686,6 +849,11 @@ function teamKey() { return 'bingo-team-' + currentHash; }
 
 function saveTeamState() {
   try { localStorage.setItem(teamKey(), JSON.stringify(teamState)); } catch {}
+  if (isFbMode && fbEventId && fbTeamId) {
+    const { total } = calculateScore();
+    const tilesComplete = countCompletedTiles();
+    fbSaveTeamProgress(fbEventId, fbTeamId, state.crossed, total, teamState.players, teamState.teamName, tilesComplete).catch(() => {});
+  }
 }
 
 function loadTeamState() {
@@ -745,8 +913,8 @@ function chartDefaults() {
     maintainAspectRatio: false,
     plugins: { legend: { display: false } },
     scales: {
-      x: { ticks: { color: '#7a7a9a', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
-      y: { ticks: { color: '#7a7a9a', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true },
+      x: { ticks: { color: '#8a7248', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' } },
+      y: { ticks: { color: '#8a7248', font: { size: 10 } }, grid: { color: 'rgba(255,255,255,0.05)' }, beginAtZero: true },
     },
   };
 }
@@ -838,14 +1006,15 @@ function activatePlayMode() {
   document.getElementById('play-bar').style.display = 'flex';
   document.getElementById('play-team-header').style.display = 'flex';
   document.getElementById('play-extended').style.display = 'block';
+  document.getElementById('play-progress-wrap').style.display = 'flex';
 
-  // Restore team name input
   document.getElementById('team-name-input').value = teamState.teamName;
   renderPlayersList();
   startCountdown();
   updateScore();
   updatePointsLegend();
   updateCharts();
+  initCompletionTracking();
 }
 
 // ── Sync inputs → state ───────────────────────────
@@ -922,11 +1091,386 @@ document.getElementById('tile-points-input').addEventListener('input', e => {
   state.cells[idx].tilePoints = Math.max(0, parseInt(e.target.value,10) || 0); refreshCell(idx);
 });
 
+// ── Connection handling ───────────────────────────
+
+window.addEventListener('offline', () => {
+  document.getElementById('connection-banner').style.display = 'block';
+});
+
+window.addEventListener('online', () => {
+  document.getElementById('connection-banner').style.display = 'none';
+  if (isFbMode) {
+    const msg = document.getElementById('play-save-msg');
+    if (msg) {
+      msg.textContent = '✓ Verbinding hersteld';
+      clearTimeout(msg._reconnect);
+      msg._reconnect = setTimeout(() => { msg.textContent = ''; }, 2000);
+    }
+  }
+});
+
+// ── Firebase UI helpers ───────────────────────────
+
+function showFbLoading(text) {
+  document.getElementById('fb-loading-text').textContent = text || 'Laden...';
+  document.getElementById('fb-loading-overlay').style.display = 'flex';
+}
+function hideFbLoading() {
+  document.getElementById('fb-loading-overlay').style.display = 'none';
+}
+
+document.getElementById('btn-publish-event').addEventListener('click', async () => {
+  const payload = {
+    v: 3, gridSize: state.gridSize, hasFreeCell: state.hasFreeCell,
+    style: state.style, bonuses: state.bonuses, endDate: state.endDate,
+    cells: state.cells.map(c => cellHasItems(c) ? {
+      items: c.items.map(it => ({ name: it.name, points: it.points || 0 })),
+      info: c.info || '', tilePoints: c.tilePoints || 0,
+    } : null),
+  };
+  showFbLoading('Event aanmaken...');
+  try {
+    const eventId = await fbPublishEvent(payload);
+    hideFbLoading();
+    const base = location.origin + location.pathname;
+    document.getElementById('event-url-display').value = base + '?event=' + eventId;
+    document.getElementById('mod-url-display').value = base + '?event=' + eventId + '&mod=1';
+    document.getElementById('event-published-wrap').style.display = 'flex';
+    document.getElementById('event-published-wrap').style.flexDirection = 'column';
+  } catch (err) {
+    hideFbLoading();
+    alert('Publiceren mislukt: ' + err.message);
+  }
+});
+
+document.getElementById('btn-copy-event-url').addEventListener('click', () => {
+  const url = document.getElementById('event-url-display').value;
+  navigator.clipboard.writeText(url).catch(() => { prompt('Kopieer:', url); });
+});
+
+document.getElementById('btn-copy-mod-url').addEventListener('click', () => {
+  const url = document.getElementById('mod-url-display').value;
+  navigator.clipboard.writeText(url).catch(() => { prompt('Kopieer:', url); });
+});
+
+// ── Load from Firebase event ──────────────────────
+
+async function loadFromEvent(eventId) {
+  showFbLoading('Event laden...');
+  try {
+    const data = await fbLoadEvent(eventId);
+    if (!data || !data.card) { hideFbLoading(); alert('Event niet gevonden.'); return; }
+    const loaded = data.card;
+    if (Number.isInteger(loaded.gridSize) && loaded.gridSize >= 2) state.gridSize = loaded.gridSize;
+    if (typeof loaded.hasFreeCell === 'boolean') state.hasFreeCell = loaded.hasFreeCell;
+    if (loaded.style) Object.assign(state.style, loaded.style);
+    if (loaded.bonuses) Object.assign(state.bonuses, loaded.bonuses);
+    state.endDate = loaded.endDate || '';
+    if (Array.isArray(loaded.cells)) {
+      state.cells = loaded.cells.map(c => c ? {
+        items: c.items.map(it => ({ name: it.name, imageUrl: '', points: it.points || 0 })),
+        info: c.info || '', tilePoints: c.tilePoints || 0,
+      } : null);
+    }
+    state.playMode = true;
+    isFbMode = true;
+    fbEventId = eventId;
+    state.crossed = state.cells.map(c => cellHasItems(c) ? c.items.map(() => ({ checked: false, date: null })) : []);
+    resizeCells();
+    renderGrid(); applyStyle();
+    refetchAllImages();
+    hideFbLoading();
+    const savedTeamId = localStorage.getItem('bingo-fb-team-' + eventId);
+    if (savedTeamId) {
+      await joinTeam(eventId, savedTeamId);
+    } else {
+      await showTeamPicker(eventId);
+    }
+  } catch (err) {
+    hideFbLoading();
+    alert('Laden mislukt: ' + err.message);
+  }
+}
+
+// ── Team picker ───────────────────────────────────
+
+async function showTeamPicker(eventId) {
+  document.getElementById('team-picker-overlay').style.display = 'flex';
+  document.getElementById('team-picker-loading').style.display = 'block';
+  document.getElementById('team-picker-list').innerHTML = '';
+  document.getElementById('team-picker-error').style.display = 'none';
+  document.getElementById('new-team-name-input').value = '';
+  try {
+    const teams = await fbGetTeams(eventId);
+    document.getElementById('team-picker-loading').style.display = 'none';
+    renderTeamPickerList(teams);
+  } catch (err) {
+    document.getElementById('team-picker-loading').textContent = 'Fout: ' + err.message;
+  }
+}
+
+function renderTeamPickerList(teams) {
+  const el = document.getElementById('team-picker-list');
+  el.innerHTML = '';
+  if (!teams.length) {
+    el.innerHTML = '<div class="team-picker-empty">Nog geen teams — maak het eerste aan!</div>';
+    return;
+  }
+  teams.forEach(team => {
+    const btn = document.createElement('button');
+    btn.className = 'team-picker-team-btn';
+    btn.innerHTML = `<span class="tp-name">${escHtml(team.name)}</span><span class="tp-score">${team.score || 0} pt</span>`;
+    btn.addEventListener('click', async () => {
+      document.getElementById('team-picker-overlay').style.display = 'none';
+      await joinTeam(fbEventId, team.id);
+    });
+    el.appendChild(btn);
+  });
+}
+
+document.getElementById('btn-create-team').addEventListener('click', async () => {
+  const name = document.getElementById('new-team-name-input').value.trim();
+  if (!name) return;
+  document.getElementById('team-picker-error').style.display = 'none';
+  try {
+    const teamId = await fbCreateTeam(fbEventId, name);
+    document.getElementById('team-picker-overlay').style.display = 'none';
+    await joinTeam(fbEventId, teamId);
+  } catch (err) {
+    const errEl = document.getElementById('team-picker-error');
+    errEl.textContent = 'Aanmaken mislukt: ' + err.message;
+    errEl.style.display = 'block';
+  }
+});
+
+async function joinTeam(eventId, teamId) {
+  showFbLoading('Team laden...');
+  try {
+    const teams = await fbGetTeams(eventId);
+    const team = teams.find(t => t.id === teamId);
+    if (!team) {
+      localStorage.removeItem('bingo-fb-team-' + eventId);
+      hideFbLoading();
+      await showTeamPicker(eventId);
+      return;
+    }
+    fbTeamId = teamId;
+    localStorage.setItem('bingo-fb-team-' + eventId, teamId);
+    applyFbCrossed(team.crossed);
+    teamState.teamName = team.name;
+    teamState.players = Array.isArray(team.players) ? team.players : [];
+    hideFbLoading();
+    activatePlayMode();
+    document.getElementById('play-scoreboard-wrap').style.display = 'block';
+
+    if (fbUnsubTeam) fbUnsubTeam();
+    fbUnsubTeam = fbListenTeam(eventId, teamId, data => {
+      if (_fbIncoming) return;
+      _fbIncoming = true;
+      applyFbCrossed(data.crossed);
+      renderGrid(); applyStyle();
+      updateScore(); updateCharts();
+      _fbIncoming = false;
+    });
+
+    if (fbUnsubScoreboard) fbUnsubScoreboard();
+    fbUnsubScoreboard = fbListenAllTeams(eventId, renderScoreboard);
+  } catch (err) {
+    hideFbLoading();
+    alert('Team laden mislukt: ' + err.message);
+  }
+}
+
+function applyFbCrossed(crossedJson) {
+  try {
+    const arr = typeof crossedJson === 'string' ? JSON.parse(crossedJson) : crossedJson;
+    if (!Array.isArray(arr)) return;
+    arr.forEach((v, i) => {
+      if (i >= state.crossed.length) return;
+      const cell = state.cells[i];
+      const count = cellHasItems(cell) ? cell.items.length : 0;
+      if (Array.isArray(v)) state.crossed[i] = normCrossed(v, count);
+    });
+  } catch {}
+}
+
+function renderScoreboard(teams) {
+  const n = state.gridSize;
+  const totalTiles = n * n - (state.hasFreeCell ? 1 : 0);
+  const el = document.getElementById('scoreboard-list');
+  if (!teams.length) { el.innerHTML = '<div class="score-empty">Geen teams</div>'; return; }
+  el.innerHTML = teams.map((t, i) => {
+    const isYou = t.id === fbTeamId;
+    const tiles = t.tilesComplete !== undefined ? t.tilesComplete : 0;
+    const pct = totalTiles > 0 ? Math.round(tiles / totalTiles * 100) : 0;
+    return `<div class="scoreboard-row${isYou ? ' scoreboard-you' : ''}">
+      <span class="scoreboard-rank">#${i + 1}</span>
+      <div class="scoreboard-info">
+        <div class="scoreboard-name">${escHtml(t.name)}${isYou ? ' <em>(jij)</em>' : ''}</div>
+        <div class="scoreboard-progress-bar"><div class="scoreboard-progress-fill" style="width:${pct}%"></div></div>
+      </div>
+      <span class="scoreboard-pts">${t.score || 0} pt</span>
+    </div>`;
+  }).join('');
+}
+
+// ── Moderator view ────────────────────────────────
+
+function isCellCompleteForCard(cardCells, crossedArr, idx, freeIdx) {
+  if (idx === freeIdx) return true;
+  const cell = cardCells[idx];
+  if (!cell || !cell.items || !cell.items.length) return false;
+  const crossed = crossedArr[idx] || [];
+  return cell.items.every((_, i) => {
+    const v = crossed[i];
+    return v && (typeof v === 'object' ? v.checked : !!v);
+  });
+}
+
+function getCompletedLineCellsForCard(cardDef, crossedArr) {
+  const n = cardDef.gridSize;
+  const freeIdx = cardDef.hasFreeCell ? Math.floor(n * n / 2) : -1;
+  const cells = cardDef.cells || [];
+  const set = new Set();
+  const complete = i => isCellCompleteForCard(cells, crossedArr, i, freeIdx);
+  for (let r = 0; r < n; r++) {
+    const idx = Array.from({length: n}, (_, c) => r * n + c);
+    if (idx.every(complete)) idx.forEach(i => set.add(i));
+  }
+  for (let c = 0; c < n; c++) {
+    const idx = Array.from({length: n}, (_, r) => r * n + c);
+    if (idx.every(complete)) idx.forEach(i => set.add(i));
+  }
+  if (n >= 2) {
+    const dl = Array.from({length: n}, (_, i) => i * n + i);
+    if (dl.every(complete)) dl.forEach(i => set.add(i));
+    const dr = Array.from({length: n}, (_, i) => i * n + (n - 1 - i));
+    if (dr.every(complete)) dr.forEach(i => set.add(i));
+  }
+  return set;
+}
+
+function buildMiniGrid(cardDef, crossedData) {
+  const n = cardDef.gridSize || 5;
+  const freeIdx = cardDef.hasFreeCell ? Math.floor(n * n / 2) : -1;
+  const cells = cardDef.cells || [];
+  let crossed = [];
+  try {
+    crossed = typeof crossedData === 'string' ? JSON.parse(crossedData) : (crossedData || []);
+  } catch {}
+
+  const lineSet = getCompletedLineCellsForCard(cardDef, crossed);
+  const countable = n * n - (cardDef.hasFreeCell ? 1 : 0);
+  let completeCount = 0;
+
+  const grid = document.createElement('div');
+  grid.className = 'mod-mini-grid';
+  grid.style.gridTemplateColumns = `repeat(${n}, 1fr)`;
+
+  for (let i = 0; i < n * n; i++) {
+    const isFree = i === freeIdx;
+    const complete = isCellCompleteForCard(cells, crossed, i, freeIdx);
+    if (complete && !isFree) completeCount++;
+
+    const cellEl = document.createElement('div');
+    const classes = ['mod-mini-cell'];
+    if (isFree) classes.push('mod-free');
+    if (complete) classes.push('mod-complete');
+    if (lineSet.has(i)) classes.push('mod-line');
+    cellEl.className = classes.join(' ');
+
+    const cellData = cells[i];
+    if (!isFree && cellData && cellData.items && cellData.items.length) {
+      cellEl.title = cellData.items.map(it => it.name).join(', ');
+    }
+    grid.appendChild(cellEl);
+  }
+
+  return { grid, completeCount, countable };
+}
+
+function buildTeamCard(team, cardDef) {
+  const card = document.createElement('div');
+  card.className = 'mod-team-card';
+
+  const { grid, completeCount, countable } = buildMiniGrid(cardDef, team.crossed);
+  const pct = countable > 0 ? Math.round(completeCount / countable * 100) : 0;
+
+  const header = document.createElement('div');
+  header.className = 'mod-card-header';
+  header.innerHTML = `<span class="mod-team-name">${escHtml(team.name)}</span><span class="mod-team-score">${team.score || 0} pt</span>`;
+  card.appendChild(header);
+
+  const progressBar = document.createElement('div');
+  progressBar.className = 'mod-progress';
+  progressBar.innerHTML = `<div class="mod-progress-fill" style="width:${pct}%"></div>`;
+  card.appendChild(progressBar);
+
+  const tileLabel = document.createElement('div');
+  tileLabel.className = 'mod-tile-count';
+  tileLabel.textContent = `${completeCount} / ${countable} tiles`;
+  card.appendChild(tileLabel);
+
+  card.appendChild(grid);
+
+  if (team.players && team.players.length) {
+    const pl = document.createElement('div');
+    pl.className = 'mod-players';
+    pl.textContent = team.players.map(p => p.name).join(', ');
+    card.appendChild(pl);
+  }
+
+  return card;
+}
+
+function renderModTeams(teams) {
+  const el = document.getElementById('mod-teams-grid');
+  if (!modCardDef) return;
+  const sorted = [...teams].sort((a, b) => (b.score || 0) - (a.score || 0));
+  el.innerHTML = '';
+  if (!sorted.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;grid-column:1/-1;padding:20px 0">Geen teams aangemeld...</div>';
+  } else {
+    sorted.forEach(team => el.appendChild(buildTeamCard(team, modCardDef)));
+  }
+  document.getElementById('mod-team-count').textContent = `${sorted.length} team${sorted.length !== 1 ? 's' : ''}`;
+}
+
+async function loadModView(eventId) {
+  isModMode = true;
+  showFbLoading('Moderator view laden...');
+  try {
+    const data = await fbLoadEvent(eventId);
+    if (!data || !data.card) { hideFbLoading(); alert('Event niet gevonden.'); return; }
+    modCardDef = data.card;
+    hideFbLoading();
+    document.querySelector('.app').style.display = 'none';
+    const modView = document.getElementById('mod-view');
+    modView.style.display = 'flex';
+    document.getElementById('mod-event-id').textContent = 'Event: ' + eventId;
+    fbListenAllTeams(eventId, renderModTeams);
+  } catch (err) {
+    hideFbLoading();
+    alert('Moderator view laden mislukt: ' + err.message);
+  }
+}
+
 // ── Init ──────────────────────────────────────────
 
 async function init() {
-  if (location.hash.length > 1) await loadFromHash();
-  else { renderGrid(); applyStyle(); }
+  const params = new URLSearchParams(location.search);
+  const eventId = params.get('event');
+  const isMod = params.get('mod') === '1';
+
+  if (eventId && isMod) {
+    await loadModView(eventId);
+  } else if (eventId) {
+    await loadFromEvent(eventId);
+  } else if (location.hash.length > 1) {
+    await loadFromHash();
+  } else {
+    renderGrid(); applyStyle();
+  }
 }
 
 init();
