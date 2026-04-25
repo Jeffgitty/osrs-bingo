@@ -1458,11 +1458,25 @@ function buildMiniGrid(cardDef, crossedData) {
     const complete = isCellCompleteForCard(cells, crossed, i, freeIdx);
     if (complete && !isFree) completeCount++;
 
+    let isPartial = false;
+    if (!isFree && !complete) {
+      const cellData = cells[i];
+      if (cellData && cellData.items && cellData.items.length > 1) {
+        const cArr = crossed[i] || [];
+        const checkedCount = cellData.items.filter((_, idx) => {
+          const v = cArr[idx];
+          return v && (typeof v === 'object' ? v.checked : !!v);
+        }).length;
+        isPartial = checkedCount > 0;
+      }
+    }
+
     const cellEl = document.createElement('div');
     const classes = ['mod-mini-cell'];
-    if (isFree) classes.push('mod-free');
-    if (complete) classes.push('mod-complete');
-    if (lineSet.has(i)) classes.push('mod-line');
+    if (isFree)            classes.push('mod-free');
+    if (complete)          classes.push('mod-complete');
+    if (isPartial)         classes.push('mod-partial');
+    if (lineSet.has(i))    classes.push('mod-line');
     cellEl.className = classes.join(' ');
 
     const cellData = cells[i];

@@ -1766,6 +1766,11 @@ label.pts-label {
   border-color: rgba(200, 170, 110, 0.35);
 }
 
+.mod-mini-cell.mod-partial {
+  background: rgba(200, 100, 20, 0.32);
+  border-color: rgba(200, 120, 20, 0.6);
+}
+
 .mod-mini-cell.mod-complete {
   background: rgba(20, 160, 60, 0.38);
   border-color: rgba(20, 160, 60, 0.55);
