@@ -20,70 +20,79 @@
 
     <!-- ── Left sidebar ── -->
     <aside class="sidebar">
-      <div class="panel">
-        <h2>Kaart</h2>
-        <label>Gridgrootte<input type="number" id="grid-size" min="2" value="5"></label>
-        <label class="toggle-label">
-          <input type="checkbox" id="free-cell" checked> Vrije middelste cel
-        </label>
-        <label>Einddatum<input type="date" id="end-date"></label>
-        <label>Achtergrond<input type="file" id="bg-upload" accept="image/*"></label>
-        <button id="bg-clear" class="btn-secondary">Achtergrond verwijderen</button>
-      </div>
 
-      <div class="panel">
-        <h2>Stijl</h2>
-        <label>Randkleur<input type="color" id="style-border-color" value="#c8aa6e"></label>
-        <label>Cel-achtergrond<input type="color" id="style-cell-bg" value="#0a0a14"></label>
-        <label>Tekstkleur<input type="color" id="style-text-color" value="#ffffff"></label>
-        <label>Cel-transparantie: <span id="cell-opacity-val">85</span>%
-          <input type="range" id="style-cell-opacity" min="0" max="100" value="85"></label>
-        <label>Randdikte: <span id="border-width-val">2</span>px
-          <input type="range" id="style-border-width" min="0" max="10" value="2"></label>
-        <label>Lettergrootte: <span id="font-size-val">11</span>px
-          <input type="range" id="style-font-size" min="6" max="24" value="11"></label>
-        <label>Celgrootte: <span id="cell-size-val">80</span>px
-          <input type="range" id="style-cell-size" min="40" max="160" value="80"></label>
-      </div>
-
-      <div class="panel">
-        <h2>Bonuspunten</h2>
-        <label>Rij bonus (pt)<input type="number" id="bonus-row" min="0" value="0" class="pts-input"></label>
-        <label>Kolom bonus (pt)<input type="number" id="bonus-col" min="0" value="0" class="pts-input"></label>
-        <label>Diagonaal &#92; bonus (pt)<input type="number" id="bonus-diag-left" min="0" value="0" class="pts-input"></label>
-        <label>Diagonaal / bonus (pt)<input type="number" id="bonus-diag-right" min="0" value="0" class="pts-input"></label>
-        <label>Hele kaart bonus (pt)<input type="number" id="bonus-fullcard" min="0" value="0" class="pts-input"></label>
-      </div>
-
-      <div class="panel" id="my-events-panel">
-        <h2>Mijn Events</h2>
-        <div id="my-events-list"></div>
-      </div>
-
-      <div class="panel export-panel">
-        <h2>Exporteren</h2>
-        <button id="btn-export" class="btn-primary">&#128229; Download PNG</button>
-        <button id="btn-share" class="btn-secondary">&#128279; Kopieer deellink</button>
-        <span id="share-msg" class="share-msg"></span>
-        <div class="panel-divider"></div>
-        <button id="btn-save-editor" class="btn-secondary">&#128190; Opslaan als JSON</button>
-        <button id="btn-load-editor" class="btn-secondary">&#128196; Kaart laden&hellip;</button>
-        <input type="file" id="load-editor-file" accept=".json" style="display:none">
-        <div class="panel-divider"></div>
-        <button id="btn-publish-event" class="btn-primary btn-publish">&#127760; Publiceer als event</button>
-        <div id="event-published-wrap" style="display:none">
-          <span class="event-link-label">Spelers link:</span>
-          <div class="event-link-row">
-            <input type="text" id="event-url-display" class="event-url-display" readonly>
-            <button id="btn-copy-event-url" class="btn-secondary btn-sm">Kopieer</button>
-          </div>
-          <span class="event-link-label" style="margin-top:6px">Moderator link:</span>
-          <div class="event-link-row">
-            <input type="text" id="mod-url-display" class="event-url-display" readonly>
-            <button id="btn-copy-mod-url" class="btn-secondary btn-sm">Kopieer</button>
-          </div>
+      <div class="panel" data-collapsible>
+        <h2>Kaart <button class="panel-toggle">&#8250;</button></h2>
+        <div class="panel-body">
+          <label>Gridgrootte<input type="number" id="grid-size" min="2" value="5"></label>
+          <label class="toggle-label">
+            <input type="checkbox" id="free-cell" checked> Vrije middelste cel
+          </label>
+          <label>Einddatum<input type="date" id="end-date"></label>
+          <label>Achtergrond<input type="file" id="bg-upload" accept="image/*"></label>
+          <button id="bg-clear" class="btn-secondary">Achtergrond verwijderen</button>
         </div>
       </div>
+
+      <div class="panel export-panel" data-collapsible>
+        <h2>Publiceren &amp; Export <button class="panel-toggle">&#8250;</button></h2>
+        <div class="panel-body">
+          <button id="btn-publish-event" class="btn-primary btn-publish btn-publish-main">&#127760; Publiceer als event</button>
+          <div id="event-published-wrap" style="display:none">
+            <span class="event-link-label">Spelers link:</span>
+            <div class="event-link-row">
+              <input type="text" id="event-url-display" class="event-url-display" readonly>
+              <button id="btn-copy-event-url" class="btn-secondary btn-sm">Kopieer</button>
+            </div>
+            <span class="event-link-label" style="margin-top:6px">Moderator link:</span>
+            <div class="event-link-row">
+              <input type="text" id="mod-url-display" class="event-url-display" readonly>
+              <button id="btn-copy-mod-url" class="btn-secondary btn-sm">Kopieer</button>
+            </div>
+          </div>
+          <div class="panel-divider"></div>
+          <button id="btn-export" class="btn-secondary">&#128229; Download PNG</button>
+          <button id="btn-save-editor" class="btn-secondary">&#128190; Opslaan als JSON</button>
+          <button id="btn-load-editor" class="btn-secondary">&#128196; Kaart laden&hellip;</button>
+          <input type="file" id="load-editor-file" accept=".json" style="display:none">
+        </div>
+      </div>
+
+      <div class="panel" id="my-events-panel" data-collapsible>
+        <h2>Mijn Events <button class="panel-toggle">&#8250;</button></h2>
+        <div class="panel-body">
+          <div id="my-events-list"></div>
+        </div>
+      </div>
+
+      <div class="panel panel-collapsed" data-collapsible>
+        <h2>Bonuspunten <button class="panel-toggle">&#8250;</button></h2>
+        <div class="panel-body">
+          <label>Rij bonus (pt)<input type="number" id="bonus-row" min="0" value="0" class="pts-input"></label>
+          <label>Kolom bonus (pt)<input type="number" id="bonus-col" min="0" value="0" class="pts-input"></label>
+          <label>Diagonaal &#92; bonus (pt)<input type="number" id="bonus-diag-left" min="0" value="0" class="pts-input"></label>
+          <label>Diagonaal / bonus (pt)<input type="number" id="bonus-diag-right" min="0" value="0" class="pts-input"></label>
+          <label>Hele kaart bonus (pt)<input type="number" id="bonus-fullcard" min="0" value="0" class="pts-input"></label>
+        </div>
+      </div>
+
+      <div class="panel panel-collapsed" data-collapsible>
+        <h2>Stijl <button class="panel-toggle">&#8250;</button></h2>
+        <div class="panel-body">
+          <label>Randkleur<input type="color" id="style-border-color" value="#c8aa6e"></label>
+          <label>Cel-achtergrond<input type="color" id="style-cell-bg" value="#0a0a14"></label>
+          <label>Tekstkleur<input type="color" id="style-text-color" value="#ffffff"></label>
+          <label>Cel-transparantie: <span id="cell-opacity-val">85</span>%
+            <input type="range" id="style-cell-opacity" min="0" max="100" value="85"></label>
+          <label>Randdikte: <span id="border-width-val">2</span>px
+            <input type="range" id="style-border-width" min="0" max="10" value="2"></label>
+          <label>Lettergrootte: <span id="font-size-val">11</span>px
+            <input type="range" id="style-font-size" min="6" max="24" value="11"></label>
+          <label>Celgrootte: <span id="cell-size-val">80</span>px
+            <input type="range" id="style-cell-size" min="40" max="160" value="80"></label>
+        </div>
+      </div>
+
     </aside>
 
     <!-- ── Center ── -->

@@ -52,7 +52,6 @@ const bingoCard     = document.getElementById('bingo-card');
 const searchInput   = document.getElementById('search-input');
 const searchResults = document.getElementById('search-results');
 const searchHint    = document.getElementById('search-hint');
-const shareMsg      = document.getElementById('share-msg');
 
 // ── Helpers ───────────────────────────────────────
 
@@ -739,25 +738,16 @@ function downloadJson(obj, filename) {
   document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
 }
 
-// ── Share link ────────────────────────────────────
+// ── Collapsible panels ────────────────────────────
 
-document.getElementById('btn-share').addEventListener('click', () => {
-  const payload = {
-    v: 3, gridSize: state.gridSize, hasFreeCell: state.hasFreeCell,
-    style: state.style, bonuses: state.bonuses, endDate: state.endDate,
-    cells: state.cells.map(c => cellHasItems(c) ? {
-      items: c.items.map(it => ({ name: it.name, points: it.points || 0 })),
-      info: c.info || '', tilePoints: c.tilePoints || 0,
-    } : null),
-  };
-  try {
-    const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
-    const url = location.href.split('#')[0] + '#' + encoded;
-    navigator.clipboard.writeText(url)
-      .then(() => { shareMsg.textContent = '✓ Link gekopieerd!'; setTimeout(() => { shareMsg.textContent = ''; }, 3000); })
-      .catch(() => { prompt('Kopieer deze link:', url); });
-  } catch (err) { alert('Deellink mislukt: ' + err.message); }
-});
+function initCollapsiblePanels() {
+  document.querySelectorAll('.panel[data-collapsible] h2').forEach(h2 => {
+    h2.addEventListener('click', e => {
+      if (e.target.closest('button') && !e.target.classList.contains('panel-toggle')) return;
+      h2.closest('.panel').classList.toggle('panel-collapsed');
+    });
+  });
+}
 
 // ── Play mode: progress save/load ─────────────────
 
@@ -1570,6 +1560,7 @@ async function init() {
   } else {
     renderGrid(); applyStyle();
     renderMyEvents();
+    initCollapsiblePanels();
   }
 }
 
