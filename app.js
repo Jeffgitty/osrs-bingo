@@ -1,5 +1,7 @@
 // app.js — OSRS Bingo Generator v3
 
+const EDITOR_PASSWORD_HASH = '5ea0d3a936a073ea8d1987f1eb06ff1e2c7101a1c323487f763f9be104162778';
+
 // ── State ─────────────────────────────────────────
 // Cell = null | { items: [{name, imageUrl, points:0}], info:'', tilePoints:0 }
 // crossed[i] = [{checked:bool, date:string|null}, ...]
@@ -1792,10 +1794,36 @@ async function init() {
   } else if (location.hash.length > 1) {
     await loadFromHash();
   } else {
+    await initEditorAuth();
     renderGrid(); applyStyle();
     renderMyEvents();
     initCollapsiblePanels();
   }
+}
+
+async function initEditorAuth() {
+  if (sessionStorage.getItem('bingo-editor-auth') === '1') return;
+  const overlay   = document.getElementById('editor-auth-overlay');
+  const input     = document.getElementById('editor-auth-input');
+  const errorEl   = document.getElementById('editor-auth-error');
+  const submitBtn = document.getElementById('editor-auth-submit');
+  overlay.style.display = 'flex';
+  setTimeout(() => input.focus(), 50);
+  await new Promise(resolve => {
+    async function trySubmit() {
+      const hash = await hashPassword(input.value);
+      if (hash === EDITOR_PASSWORD_HASH) {
+        sessionStorage.setItem('bingo-editor-auth', '1');
+        overlay.style.display = 'none';
+        resolve();
+      } else {
+        errorEl.style.display = 'block';
+        input.select();
+      }
+    }
+    submitBtn.onclick = trySubmit;
+    input.onkeydown = e => { if (e.key === 'Enter') trySubmit(); };
+  });
 }
 
 init();
