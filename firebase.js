@@ -76,3 +76,13 @@ function fbListenAllTeams(eventId, callback) {
       callback(teams.sort((a, b) => (b.score || 0) - (a.score || 0)));
     });
 }
+
+async function fbCloseEvent(eventId) {
+  await fbEnsureAuth();
+  await db.collection('events').doc(eventId).update({ closed: true });
+}
+
+function fbListenEventClosed(eventId, callback) {
+  return db.collection('events').doc(eventId)
+    .onSnapshot(doc => { if (doc.exists) callback(!!doc.data().closed); });
+}

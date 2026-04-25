@@ -43,6 +43,10 @@ let modCardDef = null;
 let _prevLineCount = 0;
 let _prevFullCard = false;
 
+// ── Event closed state ────────────────────────────
+let eventClosed = false;
+let fbUnsubEventClosed = null;
+
 // ── DOM refs ──────────────────────────────────────
 const bingoCard     = document.getElementById('bingo-card');
 const searchInput   = document.getElementById('search-input');
@@ -429,6 +433,7 @@ function formatDateShort(d) {
 // ── Item click → date picker ──────────────────────
 
 function handleItemClick(cellIndex, itemIndex) {
+  if (eventClosed) return;
   const cur = state.crossed[cellIndex][itemIndex];
   if (cur && cur.checked) {
     state.crossed[cellIndex][itemIndex] = { checked: false, date: null };
@@ -1007,6 +1012,9 @@ function activatePlayMode() {
   document.getElementById('play-team-header').style.display = 'flex';
   document.getElementById('play-extended').style.display = 'block';
   document.getElementById('play-progress-wrap').style.display = 'flex';
+  if (eventClosed) {
+    document.getElementById('event-closed-banner').style.display = 'flex';
+  }
 
   document.getElementById('team-name-input').value = teamState.teamName;
   renderPlayersList();
@@ -1133,10 +1141,13 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
     const eventId = await fbPublishEvent(payload);
     hideFbLoading();
     const base = location.origin + location.pathname;
-    document.getElementById('event-url-display').value = base + '?event=' + eventId;
-    document.getElementById('mod-url-display').value = base + '?event=' + eventId + '&mod=1';
+    const playerUrl = base + '?event=' + eventId;
+    const modUrl = base + '?event=' + eventId + '&mod=1';
+    document.getElementById('event-url-display').value = playerUrl;
+    document.getElementById('mod-url-display').value = modUrl;
     document.getElementById('event-published-wrap').style.display = 'flex';
     document.getElementById('event-published-wrap').style.flexDirection = 'column';
+    saveMyEvent(eventId, playerUrl, modUrl);
   } catch (err) {
     hideFbLoading();
     alert('Publiceren mislukt: ' + err.message);
@@ -1172,6 +1183,7 @@ async function loadFromEvent(eventId) {
         info: c.info || '', tilePoints: c.tilePoints || 0,
       } : null);
     }
+    if (data.closed) eventClosed = true;
     state.playMode = true;
     isFbMode = true;
     fbEventId = eventId;
@@ -1180,6 +1192,16 @@ async function loadFromEvent(eventId) {
     renderGrid(); applyStyle();
     refetchAllImages();
     hideFbLoading();
+    if (fbUnsubEventClosed) fbUnsubEventClosed();
+    fbUnsubEventClosed = fbListenEventClosed(eventId, closed => {
+      if (closed && !eventClosed) {
+        eventClosed = true;
+        document.getElementById('event-closed-banner').style.display = 'flex';
+        const msg = document.getElementById('play-save-msg');
+        if (msg) { msg.textContent = '⚠ Event afgesloten'; }
+      }
+    });
+
     const savedTeamId = localStorage.getItem('bingo-fb-team-' + eventId);
     if (savedTeamId) {
       await joinTeam(eventId, savedTeamId);
@@ -1448,10 +1470,87 @@ async function loadModView(eventId) {
     const modView = document.getElementById('mod-view');
     modView.style.display = 'flex';
     document.getElementById('mod-event-id').textContent = 'Event: ' + eventId;
+
+    const closeBtn = document.getElementById('btn-close-event');
+    if (data.closed) {
+      closeBtn.disabled = true;
+      closeBtn.textContent = '✓ Event gesloten';
+    } else {
+      closeBtn.addEventListener('click', async () => {
+        if (!confirm('Weet je zeker dat je dit event wil sluiten? Spelers kunnen dan niet meer afvinken.')) return;
+        try {
+          await fbCloseEvent(eventId);
+          closeBtn.disabled = true;
+          closeBtn.textContent = '✓ Event gesloten';
+        } catch (err) {
+          alert('Sluiten mislukt: ' + err.message);
+        }
+      });
+    }
+
     fbListenAllTeams(eventId, renderModTeams);
   } catch (err) {
     hideFbLoading();
     alert('Moderator view laden mislukt: ' + err.message);
+  }
+}
+
+// ── My events (localStorage) ──────────────────────
+
+function saveMyEvent(id, eventUrl, modUrl) {
+  try {
+    const events = JSON.parse(localStorage.getItem('bingo-my-events') || '[]');
+    const filtered = events.filter(e => e.id !== id);
+    filtered.unshift({ id, createdAt: new Date().toISOString(), eventUrl, modUrl });
+    localStorage.setItem('bingo-my-events', JSON.stringify(filtered.slice(0, 20)));
+  } catch {}
+  renderMyEvents();
+}
+
+function renderMyEvents() {
+  const el = document.getElementById('my-events-list');
+  if (!el) return;
+  try {
+    const events = JSON.parse(localStorage.getItem('bingo-my-events') || '[]');
+    if (!events.length) {
+      el.innerHTML = '<div class="my-events-empty">Nog geen events gepubliceerd.</div>';
+      return;
+    }
+    el.innerHTML = events.map((e, idx) => {
+      const d = new Date(e.createdAt);
+      const label = `${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      return `<div class="my-event-row">
+        <div class="my-event-info">
+          <span class="my-event-date">${label}</span>
+          <span class="my-event-id">${escHtml(e.id)}</span>
+        </div>
+        <div class="my-event-actions">
+          <a href="${escHtml(e.modUrl)}" target="_blank" class="btn-link-sm" title="Open moderator view">&#9876; Mod</a>
+          <button class="btn-link-sm my-event-copy" data-url="${escHtml(e.eventUrl)}" title="Kopieer spelers link">&#128279;</button>
+          <button class="current-item-remove my-event-del" data-idx="${idx}" title="Verwijder uit lijst">&#215;</button>
+        </div>
+      </div>`;
+    }).join('');
+    el.querySelectorAll('.my-event-del').forEach(btn => {
+      btn.addEventListener('click', () => {
+        try {
+          const events = JSON.parse(localStorage.getItem('bingo-my-events') || '[]');
+          events.splice(parseInt(btn.dataset.idx, 10), 1);
+          localStorage.setItem('bingo-my-events', JSON.stringify(events));
+        } catch {}
+        renderMyEvents();
+      });
+    });
+    el.querySelectorAll('.my-event-copy').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const url = btn.dataset.url;
+        navigator.clipboard.writeText(url).catch(() => prompt('Kopieer:', url));
+        btn.textContent = '✓';
+        setTimeout(() => { btn.innerHTML = '&#128279;'; }, 1500);
+      });
+    });
+  } catch {
+    el.innerHTML = '';
   }
 }
 
@@ -1470,6 +1569,7 @@ async function init() {
     await loadFromHash();
   } else {
     renderGrid(); applyStyle();
+    renderMyEvents();
   }
 }
 

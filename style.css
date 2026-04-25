@@ -1700,6 +1700,114 @@ label.pts-label {
   white-space: nowrap;
 }
 
+/* ── My events list ──────────────────────────────── */
+.my-events-empty {
+  font-size: 11px;
+  color: var(--text-muted);
+  padding: 2px 0;
+}
+
+.my-event-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  padding: 6px 8px;
+  background: #160f04;
+  border: 1px solid var(--panel-border);
+  border-radius: 4px;
+  margin-bottom: 4px;
+}
+
+.my-event-info {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+
+.my-event-date {
+  font-size: 12px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.my-event-id {
+  font-size: 9px;
+  color: var(--text-muted);
+  font-family: monospace;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.my-event-actions {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  flex-shrink: 0;
+}
+
+.btn-link-sm {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: #1e1508;
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  font-size: 11px;
+  border-radius: 3px;
+  padding: 3px 6px;
+  cursor: pointer;
+  text-decoration: none;
+  transition: filter 0.15s, border-color 0.15s;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+.btn-link-sm:hover {
+  filter: brightness(1.4);
+  border-color: var(--accent);
+}
+
+/* ── Danger button ───────────────────────────────── */
+.btn-danger {
+  background: #4a1414;
+  color: #ff9999;
+  border: 1px solid #7a3030;
+  border-radius: 4px;
+  padding: 6px 12px;
+  font-size: 12px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: filter 0.15s;
+  white-space: nowrap;
+}
+
+.btn-danger:hover {
+  filter: brightness(1.25);
+}
+
+.btn-danger:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  filter: none;
+}
+
+/* ── Event closed banner (play mode) ─────────────── */
+.event-closed-banner {
+  width: 100%;
+  background: #3a1414;
+  border-bottom: 1px solid #7a3030;
+  color: #ff9999;
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
 /* ── Mobile improvements ─────────────────────────── */
 @media (max-width: 640px) {
   #play-bar {

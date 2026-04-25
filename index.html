@@ -55,6 +55,11 @@
         <label>Hele kaart bonus (pt)<input type="number" id="bonus-fullcard" min="0" value="0" class="pts-input"></label>
       </div>
 
+      <div class="panel" id="my-events-panel">
+        <h2>Mijn Events</h2>
+        <div id="my-events-list"></div>
+      </div>
+
       <div class="panel export-panel">
         <h2>Exporteren</h2>
         <button id="btn-export" class="btn-primary">&#128229; Download PNG</button>
@@ -83,6 +88,11 @@
 
     <!-- ── Center ── -->
     <main class="card-area">
+      <!-- Event closed banner (play mode only) -->
+      <div id="event-closed-banner" class="event-closed-banner" style="display:none">
+        &#128683; Dit event is afgesloten &mdash; afvinken is niet meer mogelijk.
+      </div>
+
       <!-- Play bar (play mode only) -->
       <div id="play-bar" style="display:none">
         <div class="play-bar-left">
@@ -199,6 +209,7 @@
       <span class="mod-title">&#9876; Moderator View</span>
       <span id="mod-event-id" class="mod-event-id"></span>
       <span id="mod-team-count" class="mod-team-count"></span>
+      <button id="btn-close-event" class="btn-danger btn-sm" style="margin-bottom:0">&#128683; Sluit event</button>
     </div>
     <div id="mod-teams-grid" class="mod-teams-grid"></div>
   </div>
