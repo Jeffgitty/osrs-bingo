@@ -1,6 +1,6 @@
 // app.js — OSRS Bingo Generator v3
 
-const EDITOR_PASSWORD_HASH = '5ea0d3a936a073ea8d1987f1eb06ff1e2c7101a1c323487f763f9be104162778';
+const EDITOR_PASSWORD_HASH = '2a026af09452a57598fadf72e973b3e2871c2220cbc838f6ec72703d6cea99ed';
 
 // ── State ─────────────────────────────────────────
 // Cell = null | { items: [{name, imageUrl, points:0}], info:'', tilePoints:0 }
