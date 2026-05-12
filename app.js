@@ -12,6 +12,8 @@ const state = {
   style: {
     borderColor: '#c8aa6e', cellBg: '#0a0804', cellOpacity: 85,
     textColor: '#ffffff', borderWidth: 2, fontSize: 11, cellSize: 80,
+    accentColor: '#c8aa6e', appBg: '#1e160a', panelBg: '#261a0a',
+    panelBgImage: null, fontFamily: 'default',
   },
   cells: [],
   selectedCell: null,
@@ -600,6 +602,64 @@ function renderCurrentItems(index) {
 
 // ── Style ─────────────────────────────────────────
 
+const FONT_MAP = {
+  default:  "'Segoe UI', system-ui, sans-serif",
+  cinzel:   "'Cinzel', serif",
+  georgia:  "Georgia, serif",
+  arial:    "Arial, sans-serif",
+  courier:  "'Courier New', monospace",
+  impact:   "Impact, 'Arial Black', sans-serif",
+};
+
+function applyTheme() {
+  const { accentColor, appBg, panelBg, panelBgImage, fontFamily } = state.style;
+  const root = document.documentElement;
+
+  if (accentColor) {
+    root.style.setProperty('--accent', accentColor);
+    const r = parseInt(accentColor.slice(1,3),16);
+    const g = parseInt(accentColor.slice(3,5),16);
+    const b = parseInt(accentColor.slice(5,7),16);
+    root.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.15)`);
+  }
+  if (appBg) root.style.setProperty('--bg-dark', appBg);
+  if (panelBg) root.style.setProperty('--panel-bg', panelBg);
+
+  const ff = FONT_MAP[fontFamily] || FONT_MAP.default;
+  document.body.style.fontFamily = ff;
+
+  const dynStyle = document.getElementById('dynamic-theme');
+  if (panelBgImage) {
+    dynStyle.textContent = [
+      `.sidebar { background-image: url('${panelBgImage}'); background-size: cover; background-position: center; }`,
+      `.search-panel { background-image: url('${panelBgImage}'); background-size: cover; background-position: center; }`,
+      `.fb-overlay { background-image: url('${panelBgImage}'); background-size: cover; background-position: center; }`,
+    ].join('\n');
+  } else {
+    dynStyle.textContent = '';
+  }
+}
+
+async function compressPanelImage(file) {
+  return new Promise(resolve => {
+    const reader = new FileReader();
+    reader.onload = e => {
+      const img = new Image();
+      img.onload = () => {
+        const MAX = 400;
+        let w = img.width, h = img.height;
+        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        const canvas = document.createElement('canvas');
+        canvas.width = w; canvas.height = h;
+        canvas.getContext('2d').drawImage(img, 0, 0, w, h);
+        resolve(canvas.toDataURL('image/jpeg', 0.5));
+      };
+      img.src = e.target.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
 function applyStyle() {
   const { borderColor, cellBg, cellOpacity, textColor, borderWidth, fontSize, cellSize } = state.style;
   bingoCard.style.setProperty('--border-color', borderColor);
@@ -609,6 +669,7 @@ function applyStyle() {
   bingoCard.style.setProperty('--cell-size', cellSize + 'px');
   const r = parseInt(cellBg.slice(1,3),16), g = parseInt(cellBg.slice(3,5),16), b = parseInt(cellBg.slice(5,7),16);
   bingoCard.style.setProperty('--cell-bg', `rgba(${r},${g},${b},${cellOpacity/100})`);
+  applyTheme();
 }
 
 function setBackground(dataUrl) {
@@ -1016,6 +1077,10 @@ function syncUiToState() {
   document.getElementById('grid-size').value = state.gridSize;
   document.getElementById('free-cell').checked = state.hasFreeCell;
   document.getElementById('end-date').value = state.endDate;
+  document.getElementById('style-accent-color').value = state.style.accentColor || '#c8aa6e';
+  document.getElementById('style-app-bg').value = state.style.appBg || '#1e160a';
+  document.getElementById('style-panel-bg').value = state.style.panelBg || '#261a0a';
+  document.getElementById('style-font-family').value = state.style.fontFamily || 'default';
   document.getElementById('style-border-color').value = state.style.borderColor;
   document.getElementById('style-cell-bg').value = state.style.cellBg;
   document.getElementById('style-text-color').value = state.style.textColor;
@@ -1057,6 +1122,21 @@ document.getElementById('bg-upload').addEventListener('change', e => {
   const reader = new FileReader(); reader.onloadend = () => setBackground(reader.result); reader.readAsDataURL(file);
 });
 document.getElementById('bg-clear').addEventListener('click', () => { setBackground(null); document.getElementById('bg-upload').value = ''; });
+
+document.getElementById('style-accent-color').addEventListener('input', e => { state.style.accentColor = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-app-bg').addEventListener('input', e => { state.style.appBg = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-panel-bg').addEventListener('input', e => { state.style.panelBg = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-font-family').addEventListener('change', e => { state.style.fontFamily = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-panel-bg-upload').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  state.style.panelBgImage = await compressPanelImage(file);
+  applyTheme(); saveDraft();
+});
+document.getElementById('style-panel-bg-clear').addEventListener('click', () => {
+  state.style.panelBgImage = null;
+  document.getElementById('style-panel-bg-upload').value = '';
+  applyTheme(); saveDraft();
+});
 
 document.getElementById('style-border-color').addEventListener('input', e => { state.style.borderColor = e.target.value; applyStyle(); });
 document.getElementById('style-cell-bg').addEventListener('input', e => { state.style.cellBg = e.target.value; applyStyle(); });
@@ -1383,6 +1463,7 @@ function applyCardUpdate(newCard) {
       info: c.info || '', tilePoints: c.tilePoints || 0,
     } : null);
   }
+  if (newCard.style) Object.assign(state.style, newCard.style);
   if (newCard.bonuses) Object.assign(state.bonuses, newCard.bonuses);
   if (newCard.endDate !== undefined) state.endDate = newCard.endDate;
   resizeCells();

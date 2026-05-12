@@ -6,8 +6,9 @@
   <title>OSRS Bingo Generator</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@700&family=MedievalSharp&family=Uncial+Antiqua&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css">
+  <style id="dynamic-theme"></style>
 </head>
 <body>
 
@@ -75,6 +76,25 @@
       <div class="panel panel-collapsed" data-collapsible>
         <h2>Stijl <button class="panel-toggle">&#8250;</button></h2>
         <div class="panel-body">
+
+          <div class="style-section-title">App-thema</div>
+          <label>Lettertype
+            <select id="style-font-family">
+              <option value="default">Standaard (Segoe UI)</option>
+              <option value="cinzel">Cinzel (Middeleeuws)</option>
+              <option value="georgia">Georgia (Klassiek)</option>
+              <option value="arial">Arial (Modern)</option>
+              <option value="courier">Courier New (Monospace)</option>
+              <option value="impact">Impact (Vet)</option>
+            </select>
+          </label>
+          <label>Accentkleur<input type="color" id="style-accent-color" value="#c8aa6e"></label>
+          <label>App-achtergrond<input type="color" id="style-app-bg" value="#1e160a"></label>
+          <label>Panel-achtergrond<input type="color" id="style-panel-bg" value="#261a0a"></label>
+          <label>Panel afbeelding<input type="file" id="style-panel-bg-upload" accept="image/*"></label>
+          <button id="style-panel-bg-clear" class="btn-secondary">Achtergrond afbeelding verwijderen</button>
+
+          <div class="style-section-title" style="margin-top:10px">Bingokaart</div>
           <label>Randkleur<input type="color" id="style-border-color" value="#c8aa6e"></label>
           <label>Cel-achtergrond<input type="color" id="style-cell-bg" value="#0a0a14"></label>
           <label>Tekstkleur<input type="color" id="style-text-color" value="#ffffff"></label>
