@@ -12,8 +12,10 @@ const state = {
   style: {
     borderColor: '#c8aa6e', cellBg: '#0a0804', cellOpacity: 85,
     textColor: '#ffffff', borderWidth: 2, fontSize: 11, cellSize: 80,
+    checkedColor: '#14a03c', cellRadius: 0,
     accentColor: '#c8aa6e', appBg: '#1e160a', panelBg: '#261a0a',
-    panelBgImage: null, appBgImage: null, fontFamily: 'default',
+    panelOpacity: 100, appBgPattern: 'grid',
+    panelBgImage: null, appBgImage: null, cardBgImage: null, fontFamily: 'default',
   },
   cells: [],
   selectedCell: null,
@@ -611,23 +613,40 @@ const FONT_MAP = {
   impact:   "Impact, 'Arial Black', sans-serif",
 };
 
+const PATTERN_MAP = {
+  none:      '',
+  grid:      `repeating-linear-gradient(0deg,transparent,transparent 63px,rgba(200,160,60,0.055) 63px,rgba(200,160,60,0.055) 64px),repeating-linear-gradient(90deg,transparent,transparent 63px,rgba(200,160,60,0.055) 63px,rgba(200,160,60,0.055) 64px)`,
+  dots:      `radial-gradient(circle,rgba(200,160,60,0.18) 1.5px,transparent 1.5px)`,
+  diagonal:  `repeating-linear-gradient(45deg,transparent,transparent 12px,rgba(200,160,60,0.06) 12px,rgba(200,160,60,0.06) 13px)`,
+  scales:    `radial-gradient(ellipse 40px 20px at 0 20px,transparent 90%,rgba(200,160,60,0.07) 91%,rgba(200,160,60,0.07) 100%),radial-gradient(ellipse 40px 20px at 40px 20px,transparent 90%,rgba(200,160,60,0.07) 91%,rgba(200,160,60,0.07) 100%)`,
+};
+const PATTERN_SIZE = { none:'', grid:'', dots:'20px 20px', diagonal:'', scales:'40px 20px' };
+
+function hexToRgba(hex, alpha) {
+  const r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
 function applyTheme() {
-  const { accentColor, appBg, panelBg, panelBgImage, appBgImage, fontFamily } = state.style;
+  const { accentColor, appBg, panelBg, panelOpacity, panelBgImage,
+          appBgImage, appBgPattern, cardBgImage, fontFamily } = state.style;
   const root = document.documentElement;
 
   if (accentColor) {
     root.style.setProperty('--accent', accentColor);
-    const r = parseInt(accentColor.slice(1,3),16);
-    const g = parseInt(accentColor.slice(3,5),16);
-    const b = parseInt(accentColor.slice(5,7),16);
-    root.style.setProperty('--accent-dim', `rgba(${r},${g},${b},0.15)`);
+    root.style.setProperty('--accent-dim', hexToRgba(accentColor, 0.15));
   }
   if (appBg) root.style.setProperty('--bg-dark', appBg);
-  if (panelBg) root.style.setProperty('--panel-bg', panelBg);
+
+  if (panelBg) {
+    const opacity = (panelOpacity ?? 100) / 100;
+    root.style.setProperty('--panel-bg', hexToRgba(panelBg, opacity));
+  }
 
   const ff = FONT_MAP[fontFamily] || FONT_MAP.default;
   document.body.style.fontFamily = ff;
 
+  // App background (card area)
   const cardArea = document.querySelector('.card-area');
   if (cardArea) {
     if (appBgImage) {
@@ -635,36 +654,48 @@ function applyTheme() {
       cardArea.style.backgroundSize = 'cover';
       cardArea.style.backgroundPosition = 'center';
     } else {
-      cardArea.style.backgroundImage = '';
-      cardArea.style.backgroundSize = '';
+      const pat = PATTERN_MAP[appBgPattern] || '';
+      const radials = `radial-gradient(ellipse at 20% 20%,rgba(200,160,60,0.04) 0%,transparent 55%),radial-gradient(ellipse at 80% 80%,rgba(200,160,60,0.04) 0%,transparent 55%)`;
+      cardArea.style.backgroundImage = pat ? `${radials},${pat}` : radials;
+      cardArea.style.backgroundSize = PATTERN_SIZE[appBgPattern] || '';
       cardArea.style.backgroundPosition = '';
     }
   }
 
+  // Card (bingo grid) background image
+  if (cardBgImage) {
+    bingoCard.style.backgroundImage = `url('${cardBgImage}')`;
+    bingoCard.style.backgroundSize = 'cover';
+    bingoCard.style.backgroundPosition = 'center';
+  } else {
+    bingoCard.style.backgroundImage = 'none';
+  }
+
+  // Panel background image via dynamic <style>
   const dynStyle = document.getElementById('dynamic-theme');
   const rules = [];
   if (panelBgImage) {
-    const imgCss = `background-image: url('${panelBgImage}'); background-size: cover; background-position: center;`;
-    rules.push(`.sidebar { ${imgCss} }`);
-    rules.push(`.search-panel { ${imgCss} }`);
-    rules.push(`.fb-overlay { ${imgCss} }`);
+    const imgCss = `background-image:url('${panelBgImage}');background-size:cover;background-position:center;`;
+    rules.push(`.sidebar{${imgCss}}`);
+    rules.push(`.search-panel{${imgCss}}`);
+    rules.push(`.fb-overlay{${imgCss}}`);
   }
   dynStyle.textContent = rules.join('\n');
 }
 
-async function compressPanelImage(file) {
+async function compressImage(file, maxSize = 1200, quality = 0.85) {
   return new Promise(resolve => {
     const reader = new FileReader();
     reader.onload = e => {
       const img = new Image();
       img.onload = () => {
-        const MAX = 400;
         let w = img.width, h = img.height;
-        if (w > MAX) { h = Math.round(h * MAX / w); w = MAX; }
+        if (w > maxSize) { h = Math.round(h * maxSize / w); w = maxSize; }
+        else if (h > maxSize) { w = Math.round(w * maxSize / h); h = maxSize; }
         const canvas = document.createElement('canvas');
         canvas.width = w; canvas.height = h;
         canvas.getContext('2d').drawImage(img, 0, 0, w, h);
-        resolve(canvas.toDataURL('image/jpeg', 0.5));
+        resolve(canvas.toDataURL('image/jpeg', quality));
       };
       img.src = e.target.result;
     };
@@ -673,20 +704,25 @@ async function compressPanelImage(file) {
 }
 
 function applyStyle() {
-  const { borderColor, cellBg, cellOpacity, textColor, borderWidth, fontSize, cellSize } = state.style;
+  const { borderColor, cellBg, cellOpacity, textColor, borderWidth, fontSize, cellSize, checkedColor, cellRadius } = state.style;
   bingoCard.style.setProperty('--border-color', borderColor);
   bingoCard.style.setProperty('--border-width', borderWidth + 'px');
   bingoCard.style.setProperty('--text-color', textColor);
   bingoCard.style.setProperty('--font-size', fontSize + 'px');
   bingoCard.style.setProperty('--cell-size', cellSize + 'px');
-  const r = parseInt(cellBg.slice(1,3),16), g = parseInt(cellBg.slice(3,5),16), b = parseInt(cellBg.slice(5,7),16);
-  bingoCard.style.setProperty('--cell-bg', `rgba(${r},${g},${b},${cellOpacity/100})`);
+  bingoCard.style.setProperty('--cell-radius', (cellRadius || 0) + 'px');
+  bingoCard.style.setProperty('--cell-bg', hexToRgba(cellBg, cellOpacity / 100));
+  if (checkedColor) {
+    bingoCard.style.setProperty('--checked-color', hexToRgba(checkedColor, 0.65));
+    bingoCard.style.setProperty('--checked-border', hexToRgba(checkedColor, 0.75));
+    bingoCard.style.setProperty('--checked-glow', hexToRgba(checkedColor, 0.3));
+  }
   applyTheme();
 }
 
 function setBackground(dataUrl) {
-  state.background = dataUrl;
-  bingoCard.style.backgroundImage = dataUrl ? `url(${dataUrl})` : 'none';
+  state.style.cardBgImage = dataUrl;
+  applyTheme();
 }
 
 // ── Search ────────────────────────────────────────
@@ -1089,19 +1125,23 @@ function syncUiToState() {
   document.getElementById('grid-size').value = state.gridSize;
   document.getElementById('free-cell').checked = state.hasFreeCell;
   document.getElementById('end-date').value = state.endDate;
+  document.getElementById('style-font-family').value = state.style.fontFamily || 'default';
   document.getElementById('style-accent-color').value = state.style.accentColor || '#c8aa6e';
+  document.getElementById('style-app-bg-pattern').value = state.style.appBgPattern || 'grid';
   document.getElementById('style-app-bg').value = state.style.appBg || '#1e160a';
   document.getElementById('style-panel-bg').value = state.style.panelBg || '#261a0a';
-  document.getElementById('style-font-family').value = state.style.fontFamily || 'default';
+  document.getElementById('style-checked-color').value = state.style.checkedColor || '#14a03c';
   document.getElementById('style-border-color').value = state.style.borderColor;
   document.getElementById('style-cell-bg').value = state.style.cellBg;
   document.getElementById('style-text-color').value = state.style.textColor;
   [['style-border-width','border-width-val','borderWidth'],
    ['style-font-size','font-size-val','fontSize'],
    ['style-cell-opacity','cell-opacity-val','cellOpacity'],
-   ['style-cell-size','cell-size-val','cellSize']].forEach(([inputId, labelId, key]) => {
-    document.getElementById(inputId).value = state.style[key];
-    document.getElementById(labelId).textContent = state.style[key];
+   ['style-cell-size','cell-size-val','cellSize'],
+   ['style-cell-radius','cell-radius-val','cellRadius'],
+   ['style-panel-opacity','panel-opacity-val','panelOpacity']].forEach(([inputId, labelId, key]) => {
+    const el = document.getElementById(inputId);
+    if (el) { el.value = state.style[key] ?? el.value; document.getElementById(labelId).textContent = el.value; }
   });
   document.getElementById('bonus-row').value = state.bonuses.row;
   document.getElementById('bonus-col').value = state.bonuses.col;
@@ -1129,17 +1169,17 @@ document.getElementById('grid-size').addEventListener('change', e => {
 document.getElementById('free-cell').addEventListener('change', e => { state.hasFreeCell = e.target.checked; renderGrid(); applyStyle(); saveDraft(); });
 document.getElementById('end-date').addEventListener('change', e => { state.endDate = e.target.value; saveDraft(); });
 
-document.getElementById('bg-upload').addEventListener('change', e => {
-  const file = e.target.files[0]; if (!file) return;
-  const reader = new FileReader(); reader.onloadend = () => setBackground(reader.result); reader.readAsDataURL(file);
-});
-document.getElementById('bg-clear').addEventListener('click', () => { setBackground(null); document.getElementById('bg-upload').value = ''; });
 
+// App-thema
+document.getElementById('style-font-family').addEventListener('change', e => { state.style.fontFamily = e.target.value; applyTheme(); saveDraft(); });
 document.getElementById('style-accent-color').addEventListener('input', e => { state.style.accentColor = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-app-bg-pattern').addEventListener('change', e => { state.style.appBgPattern = e.target.value; applyTheme(); saveDraft(); });
+
+// App-achtergrond
 document.getElementById('style-app-bg').addEventListener('input', e => { state.style.appBg = e.target.value; applyTheme(); saveDraft(); });
 document.getElementById('style-app-bg-upload').addEventListener('change', async e => {
   const file = e.target.files[0]; if (!file) return;
-  state.style.appBgImage = await compressPanelImage(file);
+  state.style.appBgImage = await compressImage(file, 1400, 0.88);
   applyTheme(); saveDraft();
 });
 document.getElementById('style-app-bg-clear').addEventListener('click', () => {
@@ -1147,11 +1187,17 @@ document.getElementById('style-app-bg-clear').addEventListener('click', () => {
   document.getElementById('style-app-bg-upload').value = '';
   applyTheme(); saveDraft();
 });
+
+// Panels
 document.getElementById('style-panel-bg').addEventListener('input', e => { state.style.panelBg = e.target.value; applyTheme(); saveDraft(); });
-document.getElementById('style-font-family').addEventListener('change', e => { state.style.fontFamily = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-panel-opacity').addEventListener('input', e => {
+  state.style.panelOpacity = parseInt(e.target.value, 10);
+  document.getElementById('panel-opacity-val').textContent = state.style.panelOpacity;
+  applyTheme(); saveDraft();
+});
 document.getElementById('style-panel-bg-upload').addEventListener('change', async e => {
   const file = e.target.files[0]; if (!file) return;
-  state.style.panelBgImage = await compressPanelImage(file);
+  state.style.panelBgImage = await compressImage(file, 1200, 0.85);
   applyTheme(); saveDraft();
 });
 document.getElementById('style-panel-bg-clear').addEventListener('click', () => {
@@ -1160,11 +1206,24 @@ document.getElementById('style-panel-bg-clear').addEventListener('click', () => 
   applyTheme(); saveDraft();
 });
 
+// Bingokaart
+document.getElementById('style-card-bg-upload').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  state.style.cardBgImage = await compressImage(file, 1200, 0.88);
+  applyTheme(); saveDraft();
+});
+document.getElementById('style-card-bg-clear').addEventListener('click', () => {
+  state.style.cardBgImage = null;
+  document.getElementById('style-card-bg-upload').value = '';
+  applyTheme(); saveDraft();
+});
 document.getElementById('style-border-color').addEventListener('input', e => { state.style.borderColor = e.target.value; applyStyle(); });
-document.getElementById('style-cell-bg').addEventListener('input', e => { state.style.cellBg = e.target.value; applyStyle(); });
-document.getElementById('style-text-color').addEventListener('input', e => { state.style.textColor = e.target.value; applyStyle(); });
-document.getElementById('style-cell-opacity').addEventListener('input', e => { state.style.cellOpacity = parseInt(e.target.value,10); document.getElementById('cell-opacity-val').textContent = state.style.cellOpacity; applyStyle(); });
 document.getElementById('style-border-width').addEventListener('input', e => { state.style.borderWidth = parseInt(e.target.value,10); document.getElementById('border-width-val').textContent = state.style.borderWidth; applyStyle(); });
+document.getElementById('style-cell-radius').addEventListener('input', e => { state.style.cellRadius = parseInt(e.target.value,10); document.getElementById('cell-radius-val').textContent = state.style.cellRadius; applyStyle(); });
+document.getElementById('style-cell-bg').addEventListener('input', e => { state.style.cellBg = e.target.value; applyStyle(); });
+document.getElementById('style-cell-opacity').addEventListener('input', e => { state.style.cellOpacity = parseInt(e.target.value,10); document.getElementById('cell-opacity-val').textContent = state.style.cellOpacity; applyStyle(); });
+document.getElementById('style-checked-color').addEventListener('input', e => { state.style.checkedColor = e.target.value; applyStyle(); });
+document.getElementById('style-text-color').addEventListener('input', e => { state.style.textColor = e.target.value; applyStyle(); });
 document.getElementById('style-font-size').addEventListener('input', e => { state.style.fontSize = parseInt(e.target.value,10); document.getElementById('font-size-val').textContent = state.style.fontSize; applyStyle(); });
 document.getElementById('style-cell-size').addEventListener('input', e => { state.style.cellSize = parseInt(e.target.value,10); document.getElementById('cell-size-val').textContent = state.style.cellSize; applyStyle(); });
 

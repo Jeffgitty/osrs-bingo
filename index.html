@@ -32,8 +32,6 @@
             <input type="checkbox" id="free-cell" checked> Vrije middelste cel
           </label>
           <label>Einddatum<input type="date" id="end-date"></label>
-          <label>Achtergrond<input type="file" id="bg-upload" accept="image/*"></label>
-          <button id="bg-clear" class="btn-secondary">Achtergrond verwijderen</button>
         </div>
       </div>
 
@@ -89,21 +87,41 @@
             </select>
           </label>
           <label>Accentkleur<input type="color" id="style-accent-color" value="#c8aa6e"></label>
-          <label>App-achtergrond kleur<input type="color" id="style-app-bg" value="#1e160a"></label>
-          <label>App-achtergrond afbeelding<input type="file" id="style-app-bg-upload" accept="image/*"></label>
-          <button id="style-app-bg-clear" class="btn-secondary">App afbeelding verwijderen</button>
-          <label>Panel-achtergrond<input type="color" id="style-panel-bg" value="#261a0a"></label>
-          <label>Panel afbeelding<input type="file" id="style-panel-bg-upload" accept="image/*"></label>
-          <button id="style-panel-bg-clear" class="btn-secondary">Achtergrond afbeelding verwijderen</button>
+          <label>Achtergrond patroon
+            <select id="style-app-bg-pattern">
+              <option value="grid">Bingo-grid (standaard)</option>
+              <option value="none">Geen patroon</option>
+              <option value="dots">Stippen</option>
+              <option value="diagonal">Diagonalen</option>
+              <option value="scales">Schubben</option>
+            </select>
+          </label>
 
-          <div class="style-section-title" style="margin-top:10px">Bingokaart</div>
+          <div class="style-section-title">App-achtergrond</div>
+          <label>Kleur<input type="color" id="style-app-bg" value="#1e160a"></label>
+          <label>Afbeelding<input type="file" id="style-app-bg-upload" accept="image/*"></label>
+          <button id="style-app-bg-clear" class="btn-secondary btn-sm-style">&#10005; App afbeelding wissen</button>
+
+          <div class="style-section-title">Panels &amp; overlays</div>
+          <label>Kleur<input type="color" id="style-panel-bg" value="#261a0a"></label>
+          <label>Doorzichtigheid: <span id="panel-opacity-val">100</span>%
+            <input type="range" id="style-panel-opacity" min="0" max="100" value="100"></label>
+          <label>Afbeelding<input type="file" id="style-panel-bg-upload" accept="image/*"></label>
+          <button id="style-panel-bg-clear" class="btn-secondary btn-sm-style">&#10005; Panel afbeelding wissen</button>
+
+          <div class="style-section-title">Bingokaart</div>
+          <label>Achtergrond<input type="file" id="style-card-bg-upload" accept="image/*"></label>
+          <button id="style-card-bg-clear" class="btn-secondary btn-sm-style">&#10005; Kaart afbeelding wissen</button>
           <label>Randkleur<input type="color" id="style-border-color" value="#c8aa6e"></label>
-          <label>Cel-achtergrond<input type="color" id="style-cell-bg" value="#0a0a14"></label>
-          <label>Tekstkleur<input type="color" id="style-text-color" value="#ffffff"></label>
-          <label>Cel-transparantie: <span id="cell-opacity-val">85</span>%
-            <input type="range" id="style-cell-opacity" min="0" max="100" value="85"></label>
           <label>Randdikte: <span id="border-width-val">2</span>px
             <input type="range" id="style-border-width" min="0" max="10" value="2"></label>
+          <label>Celhoeken: <span id="cell-radius-val">0</span>px
+            <input type="range" id="style-cell-radius" min="0" max="30" value="0"></label>
+          <label>Cel-achtergrond<input type="color" id="style-cell-bg" value="#0a0a14"></label>
+          <label>Cel-transparantie: <span id="cell-opacity-val">85</span>%
+            <input type="range" id="style-cell-opacity" min="0" max="100" value="85"></label>
+          <label>Afgevinkt kleur<input type="color" id="style-checked-color" value="#14a03c"></label>
+          <label>Tekstkleur<input type="color" id="style-text-color" value="#ffffff"></label>
           <label>Lettergrootte: <span id="font-size-val">11</span>px
             <input type="range" id="style-font-size" min="6" max="24" value="11"></label>
           <label>Celgrootte: <span id="cell-size-val">80</span>px
