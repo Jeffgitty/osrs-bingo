@@ -3,9 +3,9 @@
   --search-width: 260px;
   --accent: #c8aa6e;
   --accent-dim: rgba(200,170,110,0.15);
-  --bg-dark: #0c0804;
-  --panel-bg: #1d1408;
-  --panel-border: #3a2a0e;
+  --bg-dark: #1a1108;
+  --panel-bg: #261a0a;
+  --panel-border: #4a3618;
   --text: #ddd5c0;
   --text-muted: #8a7248;
 }
@@ -76,7 +76,7 @@ body {
   justify-content: center;
   padding: 24px;
   overflow: auto;
-  background-color: #0a0804;
+  background-color: #1e160a;
   background-image:
     radial-gradient(ellipse at 20% 20%, rgba(200,160,60,0.04) 0%, transparent 55%),
     radial-gradient(ellipse at 80% 80%, rgba(200,160,60,0.04) 0%, transparent 55%),
@@ -1282,7 +1282,7 @@ label.pts-label {
 .fb-overlay {
   position: fixed;
   inset: 0;
-  background-color: #0a0804;
+  background-color: #1e160a;
   background-image:
     radial-gradient(ellipse at 25% 30%, rgba(200,160,60,0.07) 0%, transparent 55%),
     radial-gradient(ellipse at 75% 70%, rgba(200,160,60,0.05) 0%, transparent 55%),
@@ -1668,7 +1668,7 @@ label.pts-label {
 /* ── Moderator view ──────────────────────────────── */
 #mod-view {
   min-height: 100vh;
-  background-color: #0a0804;
+  background-color: #1e160a;
   background-image:
     radial-gradient(ellipse at 20% 20%, rgba(200,160,60,0.04) 0%, transparent 55%),
     radial-gradient(ellipse at 80% 80%, rgba(200,160,60,0.04) 0%, transparent 55%),
