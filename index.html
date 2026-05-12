@@ -100,6 +100,8 @@
           <div class="style-section-title">App-achtergrond</div>
           <label>Kleur<input type="color" id="style-app-bg" value="#1e160a"></label>
           <label>Afbeelding<input type="file" id="style-app-bg-upload" accept="image/*"></label>
+          <label>Zoom: <span id="app-bg-zoom-val">100</span>%
+            <input type="range" id="style-app-bg-zoom" min="50" max="400" value="100"></label>
           <button id="style-app-bg-clear" class="btn-secondary btn-sm-style">&#10005; App afbeelding wissen</button>
 
           <div class="style-section-title">Panels &amp; overlays</div>
@@ -107,10 +109,14 @@
           <label>Doorzichtigheid: <span id="panel-opacity-val">100</span>%
             <input type="range" id="style-panel-opacity" min="0" max="100" value="100"></label>
           <label>Afbeelding<input type="file" id="style-panel-bg-upload" accept="image/*"></label>
+          <label>Zoom: <span id="panel-bg-zoom-val">100</span>%
+            <input type="range" id="style-panel-bg-zoom" min="50" max="400" value="100"></label>
           <button id="style-panel-bg-clear" class="btn-secondary btn-sm-style">&#10005; Panel afbeelding wissen</button>
 
           <div class="style-section-title">Bingokaart</div>
           <label>Achtergrond<input type="file" id="style-card-bg-upload" accept="image/*"></label>
+          <label>Zoom: <span id="card-bg-zoom-val">100</span>%
+            <input type="range" id="style-card-bg-zoom" min="50" max="400" value="100"></label>
           <button id="style-card-bg-clear" class="btn-secondary btn-sm-style">&#10005; Kaart afbeelding wissen</button>
           <label>Randkleur<input type="color" id="style-border-color" value="#c8aa6e"></label>
           <label>Randdikte: <span id="border-width-val">2</span>px
@@ -126,6 +132,12 @@
             <input type="range" id="style-font-size" min="6" max="24" value="11"></label>
           <label>Celgrootte: <span id="cell-size-val">80</span>px
             <input type="range" id="style-cell-size" min="40" max="160" value="80"></label>
+
+          <div class="style-section-title">Interface kleuren</div>
+          <label>Primaire knoppen<input type="color" id="style-btn-primary" value="#c8aa6e"></label>
+          <label>Secundaire knoppen<input type="color" id="style-btn-secondary" value="#1e1508"></label>
+          <label>Invoervelden<input type="color" id="style-input-bg" value="#160f04"></label>
+          <label>Widget-achtergrond<input type="color" id="style-widget-bg" value="#261a0a"></label>
         </div>
       </div>
 

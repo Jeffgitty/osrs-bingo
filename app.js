@@ -15,7 +15,12 @@ const state = {
     checkedColor: '#14a03c', cellRadius: 0,
     accentColor: '#c8aa6e', appBg: '#1e160a', panelBg: '#261a0a',
     panelOpacity: 100, appBgPattern: 'grid',
-    panelBgImage: null, appBgImage: null, cardBgImage: null, fontFamily: 'default',
+    panelBgImage: null, panelBgZoom: 100,
+    appBgImage: null, appBgZoom: 100,
+    cardBgImage: null, cardBgZoom: 100,
+    fontFamily: 'default',
+    btnPrimaryColor: '', btnSecondaryColor: '#1e1508',
+    inputBgColor: '#160f04', widgetBgColor: '',
   },
   cells: [],
   selectedCell: null,
@@ -628,20 +633,26 @@ function hexToRgba(hex, alpha) {
 }
 
 function applyTheme() {
-  const { accentColor, appBg, panelBg, panelOpacity, panelBgImage,
-          appBgImage, appBgPattern, cardBgImage, fontFamily } = state.style;
+  const {
+    accentColor, appBg, panelBg, panelOpacity, panelBgImage, panelBgZoom,
+    appBgImage, appBgZoom, appBgPattern, cardBgImage, cardBgZoom, fontFamily,
+    btnPrimaryColor, btnSecondaryColor, inputBgColor, widgetBgColor,
+  } = state.style;
   const root = document.documentElement;
 
   if (accentColor) {
     root.style.setProperty('--accent', accentColor);
     root.style.setProperty('--accent-dim', hexToRgba(accentColor, 0.15));
+    root.style.setProperty('--btn-primary-bg', btnPrimaryColor || accentColor);
   }
   if (appBg) root.style.setProperty('--bg-dark', appBg);
-
   if (panelBg) {
     const opacity = (panelOpacity ?? 100) / 100;
     root.style.setProperty('--panel-bg', hexToRgba(panelBg, opacity));
   }
+  root.style.setProperty('--btn-secondary-bg', btnSecondaryColor || '#1e1508');
+  root.style.setProperty('--input-bg', inputBgColor || '#160f04');
+  root.style.setProperty('--widget-bg', widgetBgColor ? widgetBgColor : 'var(--panel-bg)');
 
   const ff = FONT_MAP[fontFamily] || FONT_MAP.default;
   document.body.style.fontFamily = ff;
@@ -651,31 +662,36 @@ function applyTheme() {
   if (cardArea) {
     if (appBgImage) {
       cardArea.style.backgroundImage = `url('${appBgImage}')`;
-      cardArea.style.backgroundSize = 'cover';
+      cardArea.style.backgroundSize = `${appBgZoom || 100}%`;
       cardArea.style.backgroundPosition = 'center';
+      cardArea.style.backgroundRepeat = 'no-repeat';
     } else {
       const pat = PATTERN_MAP[appBgPattern] || '';
       const radials = `radial-gradient(ellipse at 20% 20%,rgba(200,160,60,0.04) 0%,transparent 55%),radial-gradient(ellipse at 80% 80%,rgba(200,160,60,0.04) 0%,transparent 55%)`;
       cardArea.style.backgroundImage = pat ? `${radials},${pat}` : radials;
       cardArea.style.backgroundSize = PATTERN_SIZE[appBgPattern] || '';
       cardArea.style.backgroundPosition = '';
+      cardArea.style.backgroundRepeat = '';
     }
   }
 
   // Card (bingo grid) background image
   if (cardBgImage) {
     bingoCard.style.backgroundImage = `url('${cardBgImage}')`;
-    bingoCard.style.backgroundSize = 'cover';
+    bingoCard.style.backgroundSize = `${cardBgZoom || 100}%`;
     bingoCard.style.backgroundPosition = 'center';
+    bingoCard.style.backgroundRepeat = 'no-repeat';
   } else {
     bingoCard.style.backgroundImage = 'none';
+    bingoCard.style.backgroundSize = '';
   }
 
   // Panel background image via dynamic <style>
   const dynStyle = document.getElementById('dynamic-theme');
   const rules = [];
   if (panelBgImage) {
-    const imgCss = `background-image:url('${panelBgImage}');background-size:cover;background-position:center;`;
+    const sz = `${panelBgZoom || 100}%`;
+    const imgCss = `background-image:url('${panelBgImage}');background-size:${sz};background-position:center;background-repeat:no-repeat;`;
     rules.push(`.sidebar{${imgCss}}`);
     rules.push(`.search-panel{${imgCss}}`);
     rules.push(`.fb-overlay{${imgCss}}`);
@@ -1134,12 +1150,19 @@ function syncUiToState() {
   document.getElementById('style-border-color').value = state.style.borderColor;
   document.getElementById('style-cell-bg').value = state.style.cellBg;
   document.getElementById('style-text-color').value = state.style.textColor;
+  document.getElementById('style-btn-primary').value = state.style.btnPrimaryColor || state.style.accentColor || '#c8aa6e';
+  document.getElementById('style-btn-secondary').value = state.style.btnSecondaryColor || '#1e1508';
+  document.getElementById('style-input-bg').value = state.style.inputBgColor || '#160f04';
+  document.getElementById('style-widget-bg').value = state.style.widgetBgColor || state.style.panelBg || '#261a0a';
   [['style-border-width','border-width-val','borderWidth'],
    ['style-font-size','font-size-val','fontSize'],
    ['style-cell-opacity','cell-opacity-val','cellOpacity'],
    ['style-cell-size','cell-size-val','cellSize'],
    ['style-cell-radius','cell-radius-val','cellRadius'],
-   ['style-panel-opacity','panel-opacity-val','panelOpacity']].forEach(([inputId, labelId, key]) => {
+   ['style-panel-opacity','panel-opacity-val','panelOpacity'],
+   ['style-app-bg-zoom','app-bg-zoom-val','appBgZoom'],
+   ['style-panel-bg-zoom','panel-bg-zoom-val','panelBgZoom'],
+   ['style-card-bg-zoom','card-bg-zoom-val','cardBgZoom']].forEach(([inputId, labelId, key]) => {
     const el = document.getElementById(inputId);
     if (el) { el.value = state.style[key] ?? el.value; document.getElementById(labelId).textContent = el.value; }
   });
@@ -1187,6 +1210,11 @@ document.getElementById('style-app-bg-clear').addEventListener('click', () => {
   document.getElementById('style-app-bg-upload').value = '';
   applyTheme(); saveDraft();
 });
+document.getElementById('style-app-bg-zoom').addEventListener('input', e => {
+  state.style.appBgZoom = parseInt(e.target.value, 10);
+  document.getElementById('app-bg-zoom-val').textContent = state.style.appBgZoom;
+  applyTheme(); saveDraft();
+});
 
 // Panels
 document.getElementById('style-panel-bg').addEventListener('input', e => { state.style.panelBg = e.target.value; applyTheme(); saveDraft(); });
@@ -1205,6 +1233,11 @@ document.getElementById('style-panel-bg-clear').addEventListener('click', () => 
   document.getElementById('style-panel-bg-upload').value = '';
   applyTheme(); saveDraft();
 });
+document.getElementById('style-panel-bg-zoom').addEventListener('input', e => {
+  state.style.panelBgZoom = parseInt(e.target.value, 10);
+  document.getElementById('panel-bg-zoom-val').textContent = state.style.panelBgZoom;
+  applyTheme(); saveDraft();
+});
 
 // Bingokaart
 document.getElementById('style-card-bg-upload').addEventListener('change', async e => {
@@ -1217,6 +1250,17 @@ document.getElementById('style-card-bg-clear').addEventListener('click', () => {
   document.getElementById('style-card-bg-upload').value = '';
   applyTheme(); saveDraft();
 });
+document.getElementById('style-card-bg-zoom').addEventListener('input', e => {
+  state.style.cardBgZoom = parseInt(e.target.value, 10);
+  document.getElementById('card-bg-zoom-val').textContent = state.style.cardBgZoom;
+  applyTheme(); saveDraft();
+});
+
+// Interface kleuren
+document.getElementById('style-btn-primary').addEventListener('input', e => { state.style.btnPrimaryColor = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-btn-secondary').addEventListener('input', e => { state.style.btnSecondaryColor = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-input-bg').addEventListener('input', e => { state.style.inputBgColor = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-widget-bg').addEventListener('input', e => { state.style.widgetBgColor = e.target.value; applyTheme(); saveDraft(); });
 document.getElementById('style-border-color').addEventListener('input', e => { state.style.borderColor = e.target.value; applyStyle(); });
 document.getElementById('style-border-width').addEventListener('input', e => { state.style.borderWidth = parseInt(e.target.value,10); document.getElementById('border-width-val').textContent = state.style.borderWidth; applyStyle(); });
 document.getElementById('style-cell-radius').addEventListener('input', e => { state.style.cellRadius = parseInt(e.target.value,10); document.getElementById('cell-radius-val').textContent = state.style.cellRadius; applyStyle(); });

@@ -8,6 +8,10 @@
   --panel-border: #4a3618;
   --text: #ddd5c0;
   --text-muted: #8a7248;
+  --btn-primary-bg: var(--accent);
+  --btn-secondary-bg: #1e1508;
+  --input-bg: #160f04;
+  --widget-bg: var(--panel-bg);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -130,8 +134,11 @@ label {
 }
 
 label input[type="number"],
-label input[type="text"] {
-  background: #160f04;
+label input[type="text"],
+label input[type="password"],
+label input[type="date"],
+label select {
+  background: var(--input-bg);
   border: 1px solid var(--panel-border);
   color: var(--text);
   padding: 6px 8px;
@@ -187,7 +194,6 @@ input[type="file"] {
 }
 
 label select {
-  background: #160f04;
   border: 1px solid var(--panel-border);
   color: var(--text);
   padding: 6px 8px;
@@ -234,13 +240,13 @@ label select:focus { border-color: var(--accent); }
 }
 
 .btn-primary {
-  background: var(--accent);
+  background: var(--btn-primary-bg);
   color: #000;
   font-weight: 600;
 }
 
 .btn-secondary {
-  background: #1e1508;
+  background: var(--btn-secondary-bg);
   color: var(--text);
   border: 1px solid var(--panel-border);
 }
@@ -959,7 +965,7 @@ body:has(.app.play-mode) {
 }
 
 .play-widget {
-  background: var(--panel-bg);
+  background: var(--widget-bg);
   border: 1px solid var(--panel-border);
   border-top: 2px solid rgba(200,170,110,0.25);
   border-radius: 6px;
@@ -1108,17 +1114,21 @@ body:has(.app.play-mode) {
 .player-row {
   display: flex;
   align-items: center;
-  gap: 10px;
-  background: #160f04;
-  border: 1px solid var(--panel-border);
-  border-radius: 5px;
-  padding: 7px 10px;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.player-row::before {
+  content: '▸';
+  color: var(--accent);
+  font-size: 10px;
+  flex-shrink: 0;
 }
 
 .player-name {
   font-size: 13px;
   color: var(--text);
-  font-weight: 600;
+  font-weight: 500;
   min-width: 80px;
 }
 
