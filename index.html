@@ -54,18 +54,12 @@
           </div>
           <div class="panel-divider"></div>
           <button id="btn-export" class="btn-secondary">&#128229; Download PNG</button>
-          <button id="btn-save-editor" class="btn-secondary">&#128190; Opslaan als JSON</button>
-          <button id="btn-load-editor" class="btn-secondary">&#128196; Kaart laden&hellip;</button>
-          <input type="file" id="load-editor-file" accept=".json" style="display:none">
         </div>
       </div>
 
-      <div class="panel" id="my-events-panel" data-collapsible>
-        <h2>Mijn Events <button class="panel-toggle">&#8250;</button></h2>
-        <div class="panel-body">
-          <div id="my-events-list"></div>
-        </div>
-      </div>
+      <div class="panel-divider" style="margin:4px 12px"></div>
+      <button id="btn-menu" class="btn-secondary" style="margin:0 12px 8px">&#8592; Menu</button>
+      <input type="file" id="load-editor-file" accept=".json" style="display:none">
 
       <div class="panel panel-collapsed" data-collapsible>
         <h2>Bonuspunten <button class="panel-toggle">&#8250;</button></h2>
@@ -112,8 +106,6 @@
         </div>
         <div class="play-bar-right">
           <span id="play-save-msg" class="play-save-msg"></span>
-          <button id="btn-play-import-json" class="btn-secondary">&#128196; Voortgang laden</button>
-          <button id="btn-play-export-json" class="btn-secondary">&#128190; Voortgang opslaan</button>
           <button id="btn-play-export" class="btn-primary">&#128229; Download PNG</button>
         </div>
       </div>
@@ -354,8 +346,6 @@
     </div>
   </div>
 
-  <!-- Hidden file inputs -->
-  <input type="file" id="load-progress-file" accept=".json" style="display:none">
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"
     integrity="sha512-BNaRQnYJYiPSqHHDb58B0yaPfCu+Wgds8Gp/gU33kqBtgNS4tSPHuGibyoeqMV/TJlSKda6FXzoEyYGjTe+vXA=="

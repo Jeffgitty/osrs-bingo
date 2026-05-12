@@ -689,23 +689,14 @@ document.getElementById('btn-play-export').addEventListener('click', function() 
 
 // ── Editor: save/load JSON ────────────────────────
 
-document.getElementById('btn-save-editor').addEventListener('click', () => {
-  downloadJson({
-    v: 3,
-    gridSize: state.gridSize, hasFreeCell: state.hasFreeCell,
-    style: state.style, bonuses: state.bonuses, endDate: state.endDate,
-    cells: state.cells.map(c => cellHasItems(c) ? {
-      items: c.items.map(it => ({ name: it.name, points: it.points || 0 })),
-      info: c.info || '', tilePoints: c.tilePoints || 0,
-    } : null),
-  }, 'osrs-bingo-kaart.json');
-});
-
-document.getElementById('btn-load-editor').addEventListener('click', () => document.getElementById('load-editor-file').click());
-document.getElementById('load-editor-file').addEventListener('change', async e => {
-  const file = e.target.files[0]; if (!file) return; e.target.value = '';
-  try { await applyLoadedState(JSON.parse(await file.text())); }
-  catch (err) { alert('Laden mislukt: ' + err.message); }
+document.getElementById('btn-menu').addEventListener('click', () => {
+  clearDraft();
+  _editingEventId = null;
+  const label = document.getElementById('edit-mode-label');
+  if (label) label.remove();
+  document.getElementById('btn-publish-event').textContent = '🌐 Publiceer als event';
+  document.getElementById('event-published-wrap').style.display = 'none';
+  showEditorLanding().then(() => {});
 });
 
 async function applyLoadedState(loaded) {
@@ -792,28 +783,6 @@ function loadProgress(hash) {
 
 // ── Player progress export/import ─────────────────
 
-document.getElementById('btn-play-export-json').addEventListener('click', () => {
-  downloadJson({ v: 2, cardHash: currentHash, crossed: state.crossed, savedAt: new Date().toISOString() }, 'osrs-bingo-voortgang.json');
-});
-document.getElementById('btn-play-import-json').addEventListener('click', () => document.getElementById('load-progress-file').click());
-document.getElementById('load-progress-file').addEventListener('change', async e => {
-  const file = e.target.files[0]; if (!file) return; e.target.value = '';
-  try {
-    const loaded = JSON.parse(await file.text());
-    if (loaded.cardHash && loaded.cardHash !== currentHash)
-      if (!confirm('Voortgang is van een andere kaart. Toch laden?')) return;
-    if (!Array.isArray(loaded.crossed)) { alert('Ongeldig bestand.'); return; }
-    loaded.crossed.forEach((v, i) => {
-      if (i >= state.crossed.length || !Array.isArray(v)) return;
-      const cell = state.cells[i];
-      const count = cellHasItems(cell) ? cell.items.length : 0;
-      state.crossed[i] = normCrossed(v, count);
-    });
-    renderGrid(); applyStyle(); saveProgress(); updateScore(); updateCharts();
-    const msg = document.getElementById('play-save-msg');
-    msg.textContent = '✓ Voortgang geladen'; setTimeout(() => { msg.textContent = ''; }, 2000);
-  } catch (err) { alert('Laden mislukt: ' + err.message); }
-});
 
 // ── Countdown clock ───────────────────────────────
 
@@ -1275,6 +1244,7 @@ async function loadFromEvent(eventId) {
 // ── Team picker ───────────────────────────────────
 
 async function showTeamPicker(eventId) {
+  document.querySelector('.app').classList.add('play-mode');
   document.getElementById('team-picker-overlay').style.display = 'flex';
   document.getElementById('team-picker-loading').style.display = 'block';
   document.getElementById('team-picker-list').innerHTML = '';
