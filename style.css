@@ -274,6 +274,8 @@ label select:focus { border-color: var(--accent); }
   display: grid;
   /* grid-template-columns set by JS */
   border: var(--border-width, 2px) solid var(--border-color, #c8aa6e);
+  border-radius: var(--cell-radius, 0px);
+  overflow: hidden;
   background-size: cover;
   background-position: center;
   background-repeat: no-repeat;
