@@ -8,7 +8,6 @@ const EDITOR_PASSWORD_HASH = '2a026af09452a57598fadf72e973b3e2871c2220cbc838f6ec
 const state = {
   gridSize: 5,
   hasFreeCell: true,
-  background: null,
   style: {
     borderColor: '#c8aa6e', cellBg: '#0a0804', cellOpacity: 85,
     textColor: '#ffffff', borderWidth: 2, fontSize: 11, cellSize: 80,
