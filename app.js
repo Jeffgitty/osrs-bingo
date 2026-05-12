@@ -1332,7 +1332,11 @@ async function joinTeam(eventId, teamId) {
     teamState.teamName = team.name;
     teamState.players = Array.isArray(team.players) ? team.players : [];
     hideFbLoading();
-    document.getElementById('team-name-input').readOnly = true;
+    document.getElementById('team-name-input').style.display = 'none';
+    const nameDisplay = document.getElementById('team-name-display');
+    nameDisplay.textContent = team.name;
+    nameDisplay.style.display = 'block';
+    document.querySelector('.add-player-row').style.display = 'none';
     activatePlayMode();
     document.getElementById('play-scoreboard-wrap').style.display = 'block';
 

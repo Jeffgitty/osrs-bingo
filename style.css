@@ -852,6 +852,17 @@ body:has(.app.play-mode) {
 .team-name-input::placeholder { color: rgba(200,170,110,0.3); }
 .team-name-input:focus { border-bottom-color: var(--accent); }
 
+.team-name-display {
+  color: var(--accent);
+  font-family: 'Cinzel', serif;
+  font-size: 22px;
+  font-weight: 600;
+  text-align: center;
+  letter-spacing: 0.5px;
+  width: 100%;
+  max-width: 500px;
+}
+
 /* ── Progress bar ────────────────────────────────── */
 #play-progress-wrap {
   width: 100%;
