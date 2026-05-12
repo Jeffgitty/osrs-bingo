@@ -106,6 +106,16 @@ function fbListenEventClosed(eventId, callback) {
     .onSnapshot(doc => { if (doc.exists) callback(!!doc.data().closed); });
 }
 
+function fbListenEventCard(eventId, callback) {
+  let first = true;
+  return db.collection('events').doc(eventId)
+    .onSnapshot(doc => {
+      if (!doc.exists) return;
+      if (first) { first = false; return; }
+      if (doc.data().card) callback(doc.data().card);
+    });
+}
+
 async function fbUpdateEventCard(eventId, cardPayload, eventName, modPasswordHash) {
   await fbEnsureAuth();
   const updates = { card: cardPayload };

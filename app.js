@@ -35,6 +35,7 @@ let fbEventId = null;
 let fbTeamId = null;
 let fbUnsubTeam = null;
 let fbUnsubScoreboard = null;
+let fbUnsubCard = null;
 let _fbIncoming = false;
 
 // ── Moderator view ────────────────────────────────
@@ -1185,6 +1186,8 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
     const eventId = await fbPublishEvent(payload, eventName, modPasswordHash);
     hideFbLoading();
     clearDraft();
+    _editingEventId = eventId;
+    setEditModeLabel(eventName || eventId);
     const base = location.origin + location.pathname;
     const playerUrl = base + '?event=' + eventId;
     const modUrl = base + '?event=' + eventId + '&mod=1';
@@ -1246,6 +1249,9 @@ async function loadFromEvent(eventId) {
         if (msg) { msg.textContent = '⚠ Event afgesloten'; }
       }
     });
+
+    if (fbUnsubCard) fbUnsubCard();
+    fbUnsubCard = fbListenEventCard(eventId, applyCardUpdate);
 
     const savedTeamId = localStorage.getItem('bingo-fb-team-' + eventId);
     if (savedTeamId) {
@@ -1390,6 +1396,30 @@ async function joinTeam(eventId, teamId) {
     hideFbLoading();
     alert('Team laden mislukt: ' + err.message);
   }
+}
+
+function applyCardUpdate(newCard) {
+  if (!isFbMode) return;
+  if (Array.isArray(newCard.cells)) {
+    state.cells = newCard.cells.map(c => c ? {
+      items: c.items.map(it => ({ name: it.name, imageUrl: '', points: it.points || 0 })),
+      info: c.info || '', tilePoints: c.tilePoints || 0,
+    } : null);
+  }
+  if (newCard.bonuses) Object.assign(state.bonuses, newCard.bonuses);
+  if (newCard.endDate !== undefined) state.endDate = newCard.endDate;
+  resizeCells();
+  state.crossed = state.crossed.map((arr, i) => {
+    const cell = state.cells[i];
+    const count = cellHasItems(cell) ? cell.items.length : 0;
+    return normCrossed(arr, count);
+  });
+  renderGrid(); applyStyle();
+  refetchAllImages();
+  updateScore(); updatePointsLegend(); updateCharts();
+  startCountdown();
+  const msg = document.getElementById('play-save-msg');
+  if (msg) { msg.textContent = '🔄 Kaart bijgewerkt'; clearTimeout(msg._cardUpdate); msg._cardUpdate = setTimeout(() => { msg.textContent = ''; }, 3000); }
 }
 
 function applyFbCrossed(crossedJson) {
