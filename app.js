@@ -11,7 +11,7 @@ const state = {
   style: {
     borderColor: '#c8aa6e', cellBg: '#0a0804', cellOpacity: 85,
     textColor: '#ffffff', borderWidth: 2, fontSize: 11, cellSize: 80,
-    checkedColor: '#14a03c', cellRadius: 0,
+    checkedColor: '#14a03c', cellRadius: 0, cellGap: 0,
     accentColor: '#c8aa6e', appBg: '#1e160a', panelBg: '#261a0a',
     panelOpacity: 100, appBgPattern: 'grid',
     panelBgImage: null, panelBgZoom: 100,
@@ -719,15 +719,14 @@ async function compressImage(file, maxSize = 1200, quality = 0.85) {
 }
 
 function applyStyle() {
-  const { borderColor, cellBg, cellOpacity, textColor, borderWidth, fontSize, cellSize, checkedColor, cellRadius } = state.style;
+  const { borderColor, cellBg, cellOpacity, textColor, borderWidth, fontSize, cellSize, checkedColor, cellRadius, cellGap } = state.style;
   bingoCard.style.setProperty('--border-color', borderColor);
   bingoCard.style.setProperty('--border-width', borderWidth + 'px');
   bingoCard.style.setProperty('--text-color', textColor);
   bingoCard.style.setProperty('--font-size', fontSize + 'px');
   bingoCard.style.setProperty('--cell-size', cellSize + 'px');
-  const r = cellRadius || 0;
-  bingoCard.style.setProperty('--cell-radius', r + 'px');
-  bingoCard.style.setProperty('--cell-gap', Math.round(r * 0.4) + 'px');
+  bingoCard.style.setProperty('--cell-radius', (cellRadius || 0) + 'px');
+  bingoCard.style.setProperty('--cell-gap', (cellGap || 0) + 'px');
   bingoCard.style.borderRadius = '';
   bingoCard.style.setProperty('--cell-bg', hexToRgba(cellBg, cellOpacity / 100));
   if (checkedColor) {
@@ -1161,6 +1160,7 @@ function syncUiToState() {
    ['style-cell-opacity','cell-opacity-val','cellOpacity'],
    ['style-cell-size','cell-size-val','cellSize'],
    ['style-cell-radius','cell-radius-val','cellRadius'],
+   ['style-cell-gap','cell-gap-val','cellGap'],
    ['style-panel-opacity','panel-opacity-val','panelOpacity'],
    ['style-app-bg-zoom','app-bg-zoom-val','appBgZoom'],
    ['style-panel-bg-zoom','panel-bg-zoom-val','panelBgZoom'],
@@ -1266,6 +1266,7 @@ document.getElementById('style-widget-bg').addEventListener('input', e => { stat
 document.getElementById('style-border-color').addEventListener('input', e => { state.style.borderColor = e.target.value; applyStyle(); });
 document.getElementById('style-border-width').addEventListener('input', e => { state.style.borderWidth = parseInt(e.target.value,10); document.getElementById('border-width-val').textContent = state.style.borderWidth; applyStyle(); });
 document.getElementById('style-cell-radius').addEventListener('input', e => { state.style.cellRadius = parseInt(e.target.value,10); document.getElementById('cell-radius-val').textContent = state.style.cellRadius; applyStyle(); });
+document.getElementById('style-cell-gap').addEventListener('input', e => { state.style.cellGap = parseInt(e.target.value,10); document.getElementById('cell-gap-val').textContent = state.style.cellGap; applyStyle(); });
 document.getElementById('style-cell-bg').addEventListener('input', e => { state.style.cellBg = e.target.value; applyStyle(); });
 document.getElementById('style-cell-opacity').addEventListener('input', e => { state.style.cellOpacity = parseInt(e.target.value,10); document.getElementById('cell-opacity-val').textContent = state.style.cellOpacity; applyStyle(); });
 document.getElementById('style-checked-color').addEventListener('input', e => { state.style.checkedColor = e.target.value; applyStyle(); });
