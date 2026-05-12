@@ -42,6 +42,11 @@ let isModMode = false;
 let modCardDef = null;
 let _modEventId = null;
 
+// ── Editor draft & edit mode ──────────────────────
+let _editingEventId = null;
+const DRAFT_KEY = 'bingo-editor-draft';
+let _draftTimer = null;
+
 // ── Completion tracking ───────────────────────────
 let _prevLineCount = 0;
 let _prevFullCard = false;
@@ -406,6 +411,7 @@ function buildCell(index) {
         const existing = bingoCard.querySelectorAll('.bingo-cell')[index];
         bingoCard.replaceChild(buildCell(index), existing);
         if (state.selectedCell === index) updateSearchPanel();
+        saveDraft();
       });
       cell.appendChild(removeBtn);
     }
@@ -555,6 +561,7 @@ function renderCurrentItems(index) {
       if (data.items.length === 0) state.cells[index] = null;
       state.crossed[index] = (state.cells[index] || { items: [] }).items.map(() => ({ checked: false, date: null }));
       refreshCell(index); updateSearchPanel();
+      saveDraft();
     });
     row.appendChild(del);
 
@@ -659,6 +666,7 @@ async function assignItem(title, row) {
   state.cells[idx].items.push({ name: title, imageUrl: imageUrl || '', points: 0 });
   state.crossed[idx] = state.cells[idx].items.map(() => ({ checked: false, date: null }));
   refreshCell(idx); updateSearchPanel();
+  saveDraft();
 }
 
 // ── PNG export ────────────────────────────────────
@@ -719,6 +727,7 @@ async function applyLoadedState(loaded) {
   document.getElementById('tile-points-wrap').style.display = 'none';
   document.getElementById('current-items-panel').innerHTML = '';
   refetchAllImages();
+  saveDraft();
 }
 
 function refetchAllImages() {
@@ -1060,10 +1069,11 @@ document.getElementById('grid-size').addEventListener('change', e => {
   document.getElementById('tile-points-wrap').style.display = 'none';
   document.getElementById('current-items-panel').innerHTML = '';
   renderGrid(); applyStyle();
+  saveDraft();
 });
 
-document.getElementById('free-cell').addEventListener('change', e => { state.hasFreeCell = e.target.checked; renderGrid(); applyStyle(); });
-document.getElementById('end-date').addEventListener('change', e => { state.endDate = e.target.value; });
+document.getElementById('free-cell').addEventListener('change', e => { state.hasFreeCell = e.target.checked; renderGrid(); applyStyle(); saveDraft(); });
+document.getElementById('end-date').addEventListener('change', e => { state.endDate = e.target.value; saveDraft(); });
 
 document.getElementById('bg-upload').addEventListener('change', e => {
   const file = e.target.files[0]; if (!file) return;
@@ -1136,9 +1146,8 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
   if (filledCells < Math.ceil(totalCells / 2)) {
     if (!confirm(`Je kaart heeft maar ${filledCells} van de ${totalCells} cellen ingevuld. Toch publiceren?`)) return;
   }
-  const eventName  = document.getElementById('event-name-input').value.trim();
-  const modPw      = document.getElementById('mod-password-input').value;
-  const modPasswordHash = await hashPassword(modPw);
+  const eventName = document.getElementById('event-name-input').value.trim();
+  const modPw     = document.getElementById('mod-password-input').value;
   const payload = {
     v: 3, gridSize: state.gridSize, hasFreeCell: state.hasFreeCell,
     style: state.style, bonuses: state.bonuses, endDate: state.endDate,
@@ -1147,10 +1156,35 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
       info: c.info || '', tilePoints: c.tilePoints || 0,
     } : null),
   };
+
+  if (_editingEventId) {
+    showFbLoading('Kaart bijwerken...');
+    try {
+      const modPasswordHash = modPw ? await hashPassword(modPw) : null;
+      await fbUpdateEventCard(_editingEventId, payload, eventName, modPasswordHash);
+      hideFbLoading();
+      clearDraft();
+      const base = location.origin + location.pathname;
+      const playerUrl = base + '?event=' + _editingEventId;
+      const modUrl = base + '?event=' + _editingEventId + '&mod=1';
+      document.getElementById('event-url-display').value = playerUrl;
+      document.getElementById('mod-url-display').value = modUrl;
+      document.getElementById('event-published-wrap').style.display = 'flex';
+      document.getElementById('event-published-wrap').style.flexDirection = 'column';
+      saveMyEvent(_editingEventId, playerUrl, modUrl, eventName);
+    } catch (err) {
+      hideFbLoading();
+      alert('Bijwerken mislukt: ' + err.message);
+    }
+    return;
+  }
+
+  const modPasswordHash = await hashPassword(modPw);
   showFbLoading('Event aanmaken...');
   try {
     const eventId = await fbPublishEvent(payload, eventName, modPasswordHash);
     hideFbLoading();
+    clearDraft();
     const base = location.origin + location.pathname;
     const playerUrl = base + '?event=' + eventId;
     const modUrl = base + '?event=' + eventId + '&mod=1';
@@ -1989,6 +2023,192 @@ function renderMyEvents() {
   }
 }
 
+// ── Draft auto-save ───────────────────────────────
+
+function saveDraft() {
+  if (state.playMode || isModMode) return;
+  try {
+    localStorage.setItem(DRAFT_KEY, JSON.stringify({
+      v: 3,
+      gridSize: state.gridSize,
+      hasFreeCell: state.hasFreeCell,
+      style: state.style,
+      bonuses: state.bonuses,
+      endDate: state.endDate,
+      cells: state.cells.map(c => cellHasItems(c) ? {
+        items: c.items.map(it => ({ name: it.name, points: it.points || 0 })),
+        info: c.info || '',
+        tilePoints: c.tilePoints || 0,
+      } : null),
+      savedAt: new Date().toISOString(),
+      editingEventId: _editingEventId || null,
+    }));
+  } catch {}
+}
+
+function clearDraft() {
+  localStorage.removeItem(DRAFT_KEY);
+}
+
+// Auto-save every 15 seconds while in editor mode
+setInterval(() => { if (!state.playMode && !isModMode) saveDraft(); }, 15000);
+
+// ── Editor landing ────────────────────────────────
+
+function showEditorLanding() {
+  return new Promise(resolve => {
+    const overlay = document.getElementById('editor-landing-overlay');
+    overlay.style.display = 'flex';
+
+    document.getElementById('btn-landing-new').onclick = async () => {
+      overlay.style.display = 'none';
+      let draft = null;
+      try { const s = localStorage.getItem(DRAFT_KEY); if (s) draft = JSON.parse(s); } catch {}
+      if (draft && (draft.cells || []).some(c => c && c.items && c.items.length)) {
+        const dateStr = draft.savedAt ? new Date(draft.savedAt).toLocaleString('nl-NL') : '';
+        const restore = confirm(`Er is een niet-gepubliceerd concept gevonden${dateStr ? ' (' + dateStr + ')' : ''}.\n\nDoorgaan waar je gebleven was?`);
+        if (restore) {
+          _editingEventId = draft.editingEventId || null;
+          if (_editingEventId) setEditModeLabel(draft.editingEventId);
+          await applyLoadedState(draft);
+          resolve();
+          return;
+        }
+        clearDraft();
+        _editingEventId = null;
+      }
+      renderGrid(); applyStyle(); syncUiToState();
+      resolve();
+    };
+
+    document.getElementById('btn-landing-my-events').onclick = () => {
+      overlay.style.display = 'none';
+      showEditorMyEvents(resolve);
+    };
+  });
+}
+
+async function showEditorMyEvents(resolveEditor) {
+  const overlay = document.getElementById('editor-events-overlay');
+  overlay.style.display = 'flex';
+  document.getElementById('editor-events-loading').style.display = 'block';
+  document.getElementById('editor-events-empty').style.display = 'none';
+  document.getElementById('editor-events-list').innerHTML = '';
+
+  document.getElementById('btn-events-back').onclick = () => {
+    overlay.style.display = 'none';
+    showEditorLanding().then(resolveEditor);
+  };
+
+  let stored = [];
+  try { stored = JSON.parse(localStorage.getItem('bingo-my-events') || '[]'); } catch {}
+  document.getElementById('editor-events-loading').style.display = 'none';
+
+  if (!stored.length) {
+    document.getElementById('editor-events-empty').style.display = 'block';
+    return;
+  }
+
+  const list = document.getElementById('editor-events-list');
+  await Promise.all(stored.map(async e => {
+    try {
+      const data = await fbLoadEvent(e.id);
+      list.appendChild(buildEditorEventRow(e, data, overlay, resolveEditor));
+    } catch {}
+  }));
+
+  if (!list.children.length) {
+    document.getElementById('editor-events-empty').style.display = 'block';
+  }
+}
+
+function buildEditorEventRow(stored, firebaseData, overlay, resolveEditor) {
+  const row = document.createElement('div');
+  row.className = 'editor-event-row';
+
+  const info = document.createElement('div');
+  info.className = 'editor-event-info';
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'editor-event-name';
+  nameEl.textContent = stored.name || stored.id;
+  info.appendChild(nameEl);
+
+  const metaEl = document.createElement('div');
+  metaEl.className = 'editor-event-meta';
+  const d = new Date(stored.createdAt);
+  metaEl.textContent = `${d.getDate()}-${d.getMonth() + 1}-${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  info.appendChild(metaEl);
+
+  if (firebaseData) {
+    const badge = document.createElement('span');
+    badge.className = 'editor-event-badge' + (firebaseData.closed ? ' closed' : '');
+    badge.textContent = firebaseData.closed ? 'Gesloten' : 'Actief';
+    info.appendChild(badge);
+  }
+
+  row.appendChild(info);
+
+  const actions = document.createElement('div');
+  actions.className = 'editor-event-actions';
+
+  if (firebaseData && firebaseData.card) {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn-secondary btn-sm';
+    editBtn.textContent = '✏ Bewerken';
+    editBtn.addEventListener('click', async () => {
+      overlay.style.display = 'none';
+      _editingEventId = stored.id;
+      document.getElementById('event-name-input').value = firebaseData.name || '';
+      setEditModeLabel(firebaseData.name || stored.id);
+      await applyLoadedState(firebaseData.card);
+      resolveEditor();
+    });
+    actions.appendChild(editBtn);
+  }
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-danger btn-sm';
+  delBtn.textContent = '🗑';
+  delBtn.title = 'Verwijder event';
+  delBtn.addEventListener('click', async () => {
+    if (!confirm(`Event "${stored.name || stored.id}" permanent verwijderen? Teams en voortgang worden ook verwijderd.`)) return;
+    try {
+      showFbLoading('Verwijderen...');
+      await fbDeleteEvent(stored.id);
+      hideFbLoading();
+      try {
+        const evs = JSON.parse(localStorage.getItem('bingo-my-events') || '[]');
+        localStorage.setItem('bingo-my-events', JSON.stringify(evs.filter(e => e.id !== stored.id)));
+      } catch {}
+      row.remove();
+      if (!document.getElementById('editor-events-list').children.length) {
+        document.getElementById('editor-events-empty').style.display = 'block';
+      }
+    } catch (err) {
+      hideFbLoading();
+      alert('Verwijderen mislukt: ' + err.message);
+    }
+  });
+  actions.appendChild(delBtn);
+
+  row.appendChild(actions);
+  return row;
+}
+
+function setEditModeLabel(nameOrId) {
+  document.getElementById('btn-publish-event').textContent = '✏ Kaart bijwerken';
+  let label = document.getElementById('edit-mode-label');
+  if (!label) {
+    label = document.createElement('div');
+    label.id = 'edit-mode-label';
+    label.className = 'edit-mode-label';
+    const btn = document.getElementById('btn-publish-event');
+    btn.parentNode.insertBefore(label, btn);
+  }
+  label.textContent = `Bezig met bewerken: ${nameOrId}`;
+}
+
 // ── Init ──────────────────────────────────────────
 
 async function init() {
@@ -2003,36 +2223,37 @@ async function init() {
   } else if (location.hash.length > 1) {
     await loadFromHash();
   } else {
-    await initEditorAuth();
-    renderGrid(); applyStyle();
+    await initEditorAuth(); // includes landing + choice; handles renderGrid
     renderMyEvents();
     initCollapsiblePanels();
   }
 }
 
 async function initEditorAuth() {
-  if (sessionStorage.getItem('bingo-editor-auth') === '1') return;
-  const overlay   = document.getElementById('editor-auth-overlay');
-  const input     = document.getElementById('editor-auth-input');
-  const errorEl   = document.getElementById('editor-auth-error');
-  const submitBtn = document.getElementById('editor-auth-submit');
-  overlay.style.display = 'flex';
-  setTimeout(() => input.focus(), 50);
-  await new Promise(resolve => {
-    async function trySubmit() {
-      const hash = await hashPassword(input.value);
-      if (hash === EDITOR_PASSWORD_HASH) {
-        sessionStorage.setItem('bingo-editor-auth', '1');
-        overlay.style.display = 'none';
-        resolve();
-      } else {
-        errorEl.style.display = 'block';
-        input.select();
+  if (sessionStorage.getItem('bingo-editor-auth') !== '1') {
+    const overlay   = document.getElementById('editor-auth-overlay');
+    const input     = document.getElementById('editor-auth-input');
+    const errorEl   = document.getElementById('editor-auth-error');
+    const submitBtn = document.getElementById('editor-auth-submit');
+    overlay.style.display = 'flex';
+    setTimeout(() => input.focus(), 50);
+    await new Promise(resolve => {
+      async function trySubmit() {
+        const hash = await hashPassword(input.value);
+        if (hash === EDITOR_PASSWORD_HASH) {
+          sessionStorage.setItem('bingo-editor-auth', '1');
+          overlay.style.display = 'none';
+          resolve();
+        } else {
+          errorEl.style.display = 'block';
+          input.select();
+        }
       }
-    }
-    submitBtn.onclick = trySubmit;
-    input.onkeydown = e => { if (e.key === 'Enter') trySubmit(); };
-  });
+      submitBtn.onclick = trySubmit;
+      input.onkeydown = e => { if (e.key === 'Enter') trySubmit(); };
+    });
+  }
+  await showEditorLanding();
 }
 
 init();

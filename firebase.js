@@ -106,6 +106,14 @@ function fbListenEventClosed(eventId, callback) {
     .onSnapshot(doc => { if (doc.exists) callback(!!doc.data().closed); });
 }
 
+async function fbUpdateEventCard(eventId, cardPayload, eventName, modPasswordHash) {
+  await fbEnsureAuth();
+  const updates = { card: cardPayload };
+  if (eventName !== undefined) updates.name = eventName;
+  if (modPasswordHash) updates.modPasswordHash = modPasswordHash;
+  await db.collection('events').doc(eventId).update(updates);
+}
+
 async function fbUpdateTeam(eventId, teamId, updates) {
   await fbEnsureAuth();
   await db.collection('events').doc(eventId).collection('teams').doc(teamId).update(updates);

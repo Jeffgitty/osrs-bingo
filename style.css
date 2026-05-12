@@ -2036,6 +2036,130 @@ label.pts-label {
   flex-shrink: 0;
 }
 
+/* ── Editor landing ─────────────────────────────── */
+.editor-landing-box {
+  background: #1d1408;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 36px 40px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  max-width: 340px;
+}
+
+.editor-landing-title {
+  font-family: 'Cinzel', serif;
+  font-size: 20px;
+  color: var(--accent);
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.editor-landing-btn {
+  width: 100%;
+  font-size: 14px;
+  padding: 13px;
+}
+
+/* ── Editor my-events overlay ───────────────────── */
+.editor-events-box {
+  background: #1d1408;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  padding: 24px 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  width: 100%;
+  max-width: 580px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+
+.editor-events-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.editor-events-title {
+  font-family: 'Cinzel', serif;
+  font-size: 16px;
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.editor-events-loading,
+.editor-events-empty {
+  color: var(--text-muted);
+  font-size: 13px;
+  text-align: center;
+  padding: 20px 0;
+}
+
+.editor-events-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.editor-event-row {
+  background: rgba(255,255,255,0.03);
+  border: 1px solid var(--panel-border);
+  border-radius: 6px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.editor-event-info { flex: 1; }
+
+.editor-event-name {
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.editor-event-meta {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 3px;
+}
+
+.editor-event-badge {
+  display: inline-block;
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 10px;
+  margin-top: 4px;
+  background: rgba(20,160,60,0.15);
+  color: #5de88a;
+  border: 1px solid rgba(20,160,60,0.3);
+}
+
+.editor-event-badge.closed {
+  background: rgba(200,80,80,0.15);
+  color: #e08080;
+  border-color: rgba(200,80,80,0.3);
+}
+
+.editor-event-actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.edit-mode-label {
+  font-size: 11px;
+  color: var(--accent);
+  text-align: center;
+  opacity: 0.85;
+  margin-bottom: 2px;
+}
+
 /* ── Mod password auth box ───────────────────────── */
 .mod-auth-box {
   background: #1d1408;
