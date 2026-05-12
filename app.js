@@ -13,7 +13,7 @@ const state = {
     borderColor: '#c8aa6e', cellBg: '#0a0804', cellOpacity: 85,
     textColor: '#ffffff', borderWidth: 2, fontSize: 11, cellSize: 80,
     accentColor: '#c8aa6e', appBg: '#1e160a', panelBg: '#261a0a',
-    panelBgImage: null, fontFamily: 'default',
+    panelBgImage: null, appBgImage: null, fontFamily: 'default',
   },
   cells: [],
   selectedCell: null,
@@ -612,7 +612,7 @@ const FONT_MAP = {
 };
 
 function applyTheme() {
-  const { accentColor, appBg, panelBg, panelBgImage, fontFamily } = state.style;
+  const { accentColor, appBg, panelBg, panelBgImage, appBgImage, fontFamily } = state.style;
   const root = document.documentElement;
 
   if (accentColor) {
@@ -628,16 +628,28 @@ function applyTheme() {
   const ff = FONT_MAP[fontFamily] || FONT_MAP.default;
   document.body.style.fontFamily = ff;
 
-  const dynStyle = document.getElementById('dynamic-theme');
-  if (panelBgImage) {
-    dynStyle.textContent = [
-      `.sidebar { background-image: url('${panelBgImage}'); background-size: cover; background-position: center; }`,
-      `.search-panel { background-image: url('${panelBgImage}'); background-size: cover; background-position: center; }`,
-      `.fb-overlay { background-image: url('${panelBgImage}'); background-size: cover; background-position: center; }`,
-    ].join('\n');
-  } else {
-    dynStyle.textContent = '';
+  const cardArea = document.querySelector('.card-area');
+  if (cardArea) {
+    if (appBgImage) {
+      cardArea.style.backgroundImage = `url('${appBgImage}')`;
+      cardArea.style.backgroundSize = 'cover';
+      cardArea.style.backgroundPosition = 'center';
+    } else {
+      cardArea.style.backgroundImage = '';
+      cardArea.style.backgroundSize = '';
+      cardArea.style.backgroundPosition = '';
+    }
   }
+
+  const dynStyle = document.getElementById('dynamic-theme');
+  const rules = [];
+  if (panelBgImage) {
+    const imgCss = `background-image: url('${panelBgImage}'); background-size: cover; background-position: center;`;
+    rules.push(`.sidebar { ${imgCss} }`);
+    rules.push(`.search-panel { ${imgCss} }`);
+    rules.push(`.fb-overlay { ${imgCss} }`);
+  }
+  dynStyle.textContent = rules.join('\n');
 }
 
 async function compressPanelImage(file) {
@@ -1125,6 +1137,16 @@ document.getElementById('bg-clear').addEventListener('click', () => { setBackgro
 
 document.getElementById('style-accent-color').addEventListener('input', e => { state.style.accentColor = e.target.value; applyTheme(); saveDraft(); });
 document.getElementById('style-app-bg').addEventListener('input', e => { state.style.appBg = e.target.value; applyTheme(); saveDraft(); });
+document.getElementById('style-app-bg-upload').addEventListener('change', async e => {
+  const file = e.target.files[0]; if (!file) return;
+  state.style.appBgImage = await compressPanelImage(file);
+  applyTheme(); saveDraft();
+});
+document.getElementById('style-app-bg-clear').addEventListener('click', () => {
+  state.style.appBgImage = null;
+  document.getElementById('style-app-bg-upload').value = '';
+  applyTheme(); saveDraft();
+});
 document.getElementById('style-panel-bg').addEventListener('input', e => { state.style.panelBg = e.target.value; applyTheme(); saveDraft(); });
 document.getElementById('style-font-family').addEventListener('change', e => { state.style.fontFamily = e.target.value; applyTheme(); saveDraft(); });
 document.getElementById('style-panel-bg-upload').addEventListener('change', async e => {
