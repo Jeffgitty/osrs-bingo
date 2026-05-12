@@ -27,6 +27,21 @@ body {
   height: 100vh;
 }
 
+.btn-menu-home {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--panel-border);
+  color: var(--accent);
+  font-size: 22px;
+  padding: 10px 0;
+  cursor: pointer;
+  transition: background 0.15s;
+  text-align: center;
+}
+.btn-menu-home:hover { background: rgba(200,170,110,0.08); }
+
 .sidebar {
   width: var(--sidebar-width);
   background: var(--panel-bg);
