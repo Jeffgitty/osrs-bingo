@@ -893,14 +893,21 @@ function renderPlayersList() {
   teamState.players.forEach((p, idx) => {
     const row = document.createElement('div');
     row.className = 'player-row';
-    row.innerHTML = `
-      <span class="player-name">${escHtml(p.name)}</span>
-      <button class="current-item-remove player-remove" data-idx="${idx}" title="Verwijder speler">✕</button>
-    `;
-    row.querySelector('.player-remove').addEventListener('click', () => {
-      teamState.players.splice(idx, 1);
-      saveTeamState(); renderPlayersList();
-    });
+    const nameEl = document.createElement('span');
+    nameEl.className = 'player-name';
+    nameEl.textContent = p.name;
+    row.appendChild(nameEl);
+    if (!isFbMode) {
+      const delBtn = document.createElement('button');
+      delBtn.className = 'current-item-remove player-remove';
+      delBtn.title = 'Verwijder speler';
+      delBtn.textContent = '✕';
+      delBtn.addEventListener('click', () => {
+        teamState.players.splice(idx, 1);
+        saveTeamState(); renderPlayersList();
+      });
+      row.appendChild(delBtn);
+    }
     el.appendChild(row);
   });
 }
