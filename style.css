@@ -273,7 +273,7 @@ label select:focus { border-color: var(--accent); }
 #bingo-card {
   display: grid;
   /* grid-template-columns set by JS */
-  border: var(--border-width, 2px) solid var(--border-color, #c8aa6e);
+  border: none;
   gap: var(--cell-gap, 0px);
   background-size: cover;
   background-position: center;
