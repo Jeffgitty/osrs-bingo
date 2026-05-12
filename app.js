@@ -725,8 +725,10 @@ function applyStyle() {
   bingoCard.style.setProperty('--text-color', textColor);
   bingoCard.style.setProperty('--font-size', fontSize + 'px');
   bingoCard.style.setProperty('--cell-size', cellSize + 'px');
-  bingoCard.style.setProperty('--cell-radius', (cellRadius || 0) + 'px');
-  bingoCard.style.borderRadius = (cellRadius || 0) + 'px';
+  const r = cellRadius || 0;
+  bingoCard.style.setProperty('--cell-radius', r + 'px');
+  bingoCard.style.setProperty('--cell-gap', Math.round(r * 0.4) + 'px');
+  bingoCard.style.borderRadius = '';
   bingoCard.style.setProperty('--cell-bg', hexToRgba(cellBg, cellOpacity / 100));
   if (checkedColor) {
     bingoCard.style.setProperty('--checked-color', hexToRgba(checkedColor, 0.65));
