@@ -219,12 +219,34 @@
     <div class="mod-header">
       <span class="mod-title">&#9876; Moderator View</span>
       <span id="mod-event-id" class="mod-event-id"></span>
+      <div class="mod-tabs">
+        <button id="mod-tab-beheer" class="mod-tab mod-tab-active">Teams Beheren</button>
+        <button id="mod-tab-overzicht" class="mod-tab">Overzicht</button>
+      </div>
       <span id="mod-team-count" class="mod-team-count"></span>
       <button id="btn-close-event" class="btn-danger btn-sm" style="margin-bottom:0">&#128683; Sluit event</button>
       <button id="btn-reopen-event" class="btn-secondary btn-sm" style="margin-bottom:0;display:none">&#9654; Heropenen</button>
       <button id="btn-delete-event" class="btn-danger btn-sm btn-delete" style="margin-bottom:0">&#128465; Verwijder</button>
     </div>
-    <div id="mod-teams-grid" class="mod-teams-grid"></div>
+
+    <!-- Teams beheren panel -->
+    <div id="mod-panel-beheer" class="mod-panel">
+      <div class="mod-add-team-section">
+        <div class="mod-section-title">Nieuw team aanmaken</div>
+        <div class="mod-add-team-form">
+          <input type="text" id="mod-new-team-name" placeholder="Teamnaam..." class="team-picker-input" maxlength="60">
+          <input type="password" id="mod-new-team-password" placeholder="Wachtwoord (optioneel)" class="team-picker-input" maxlength="100">
+          <button id="btn-mod-add-team" class="btn-primary" style="margin-bottom:0">Aanmaken</button>
+        </div>
+        <div id="mod-add-team-error" class="team-picker-error" style="display:none"></div>
+      </div>
+      <div id="mod-manage-list" class="mod-manage-list"></div>
+    </div>
+
+    <!-- Overzicht panel -->
+    <div id="mod-panel-overzicht" class="mod-panel" style="display:none">
+      <div id="mod-teams-grid" class="mod-teams-grid"></div>
+    </div>
   </div>
 
   <!-- ── Celebration overlay ── -->
@@ -269,12 +291,6 @@
       <div class="team-picker-title">&#128101; Kies je team</div>
       <div id="team-picker-loading" class="team-picker-loading">Teams ophalen...</div>
       <div id="team-picker-list" class="team-picker-list"></div>
-      <div class="team-picker-sep">— of maak een nieuw team aan —</div>
-      <div class="team-picker-new-col">
-        <input type="text" id="new-team-name-input" placeholder="Teamnaam..." class="team-picker-input">
-        <input type="password" id="new-team-password-input" placeholder="Wachtwoord (optioneel)" class="team-picker-input">
-        <button id="btn-create-team" class="btn-primary" style="margin-bottom:0">Aanmaken</button>
-      </div>
       <div id="team-picker-error" class="team-picker-error" style="display:none"></div>
     </div>
   </div>

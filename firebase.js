@@ -105,3 +105,13 @@ function fbListenEventClosed(eventId, callback) {
   return db.collection('events').doc(eventId)
     .onSnapshot(doc => { if (doc.exists) callback(!!doc.data().closed); });
 }
+
+async function fbUpdateTeam(eventId, teamId, updates) {
+  await fbEnsureAuth();
+  await db.collection('events').doc(eventId).collection('teams').doc(teamId).update(updates);
+}
+
+async function fbDeleteTeam(eventId, teamId) {
+  await fbEnsureAuth();
+  await db.collection('events').doc(eventId).collection('teams').doc(teamId).delete();
+}

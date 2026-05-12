@@ -40,6 +40,7 @@ let _fbIncoming = false;
 // ── Moderator view ────────────────────────────────
 let isModMode = false;
 let modCardDef = null;
+let _modEventId = null;
 
 // ── Completion tracking ───────────────────────────
 let _prevLineCount = 0;
@@ -1231,7 +1232,6 @@ async function showTeamPicker(eventId) {
   document.getElementById('team-picker-loading').style.display = 'block';
   document.getElementById('team-picker-list').innerHTML = '';
   document.getElementById('team-picker-error').style.display = 'none';
-  document.getElementById('new-team-name-input').value = '';
   try {
     const teams = await fbGetTeams(eventId);
     document.getElementById('team-picker-loading').style.display = 'none';
@@ -1245,7 +1245,7 @@ function renderTeamPickerList(teams) {
   const el = document.getElementById('team-picker-list');
   el.innerHTML = '';
   if (!teams.length) {
-    el.innerHTML = '<div class="team-picker-empty">Nog geen teams — maak het eerste aan!</div>';
+    el.innerHTML = '<div class="team-picker-empty">Nog geen teams aangemaakt — neem contact op met de moderator.</div>';
     return;
   }
   teams.forEach(team => {
@@ -1314,22 +1314,6 @@ function renderTeamPickerList(teams) {
   });
 }
 
-document.getElementById('btn-create-team').addEventListener('click', async () => {
-  const name = document.getElementById('new-team-name-input').value.trim();
-  if (!name) return;
-  const pw = document.getElementById('new-team-password-input').value;
-  const passwordHash = await hashPassword(pw);
-  document.getElementById('team-picker-error').style.display = 'none';
-  try {
-    const teamId = await fbCreateTeam(fbEventId, name, passwordHash);
-    document.getElementById('team-picker-overlay').style.display = 'none';
-    await joinTeam(fbEventId, teamId);
-  } catch (err) {
-    const errEl = document.getElementById('team-picker-error');
-    errEl.textContent = 'Aanmaken mislukt: ' + err.message;
-    errEl.style.display = 'block';
-  }
-});
 
 async function joinTeam(eventId, teamId) {
   showFbLoading('Team laden...');
@@ -1348,6 +1332,7 @@ async function joinTeam(eventId, teamId) {
     teamState.teamName = team.name;
     teamState.players = Array.isArray(team.players) ? team.players : [];
     hideFbLoading();
+    document.getElementById('team-name-input').readOnly = true;
     activatePlayMode();
     document.getElementById('play-scoreboard-wrap').style.display = 'block';
 
@@ -1567,6 +1552,7 @@ function promptModPassword(expectedHash) {
 
 async function loadModView(eventId) {
   isModMode = true;
+  _modEventId = eventId;
   showFbLoading('Moderator view laden...');
   try {
     const data = await fbLoadEvent(eventId);
@@ -1625,7 +1611,10 @@ async function loadModView(eventId) {
     });
 
     fbListenEventClosed(eventId, applyClosedState);
-    fbListenAllTeams(eventId, renderModTeams);
+    fbListenAllTeams(eventId, teams => {
+      renderModTeams(teams);
+      renderModManageTeams(teams);
+    });
   } catch (err) {
     hideFbLoading();
     alert('Moderator view laden mislukt: ' + err.message);
@@ -1717,6 +1706,222 @@ document.getElementById('mod-detail-close').addEventListener('click', () => {
 document.getElementById('mod-detail-overlay').addEventListener('click', e => {
   if (e.target === document.getElementById('mod-detail-overlay'))
     document.getElementById('mod-detail-overlay').style.display = 'none';
+});
+
+// ── Moderator team management ─────────────────────
+
+function renderModManageTeams(teams) {
+  const el = document.getElementById('mod-manage-list');
+  if (!el) return;
+
+  const openEdits = new Set();
+  el.querySelectorAll('.mod-manage-row').forEach(row => {
+    const form = row.querySelector('.mod-manage-row-edit');
+    if (form && form.style.display !== 'none') openEdits.add(row.dataset.teamId);
+  });
+
+  el.innerHTML = '';
+  if (!teams.length) {
+    el.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px 0">Nog geen teams aangemaakt. Maak hierboven een team aan.</div>';
+    return;
+  }
+  const sorted = [...teams].sort((a, b) => a.name.localeCompare(b.name));
+  sorted.forEach(team => el.appendChild(buildModManageRow(team, openEdits.has(team.id))));
+  document.getElementById('mod-team-count').textContent = `${teams.length} team${teams.length !== 1 ? 's' : ''}`;
+}
+
+function buildModManageRow(team, startOpen) {
+  const row = document.createElement('div');
+  row.className = 'mod-manage-row';
+  row.dataset.teamId = team.id;
+
+  // Header
+  const header = document.createElement('div');
+  header.className = 'mod-manage-row-header';
+
+  const nameLabel = document.createElement('span');
+  nameLabel.className = 'mod-manage-team-name-label';
+  nameLabel.textContent = team.name + (team.passwordHash ? ' 🔒' : '');
+  header.appendChild(nameLabel);
+
+  const countLabel = document.createElement('span');
+  countLabel.className = 'mod-manage-player-count';
+  countLabel.textContent = (team.players || []).length + ' speler(s)';
+  header.appendChild(countLabel);
+
+  const btns = document.createElement('div');
+  btns.className = 'mod-manage-row-btns';
+
+  const editBtn = document.createElement('button');
+  editBtn.className = 'btn-secondary btn-sm';
+  editBtn.textContent = '✏ Bewerken';
+  btns.appendChild(editBtn);
+
+  const delBtn = document.createElement('button');
+  delBtn.className = 'btn-danger btn-sm';
+  delBtn.textContent = '🗑 Verwijder';
+  btns.appendChild(delBtn);
+
+  header.appendChild(btns);
+  row.appendChild(header);
+
+  // Edit form
+  const form = document.createElement('div');
+  form.className = 'mod-manage-row-edit';
+  form.style.display = startOpen ? 'block' : 'none';
+
+  let editPlayers = Array.isArray(team.players) ? team.players.map(p => ({ ...p })) : [];
+
+  const nameLabel2 = document.createElement('label');
+  nameLabel2.textContent = 'Teamnaam';
+  const nameInput = document.createElement('input');
+  nameInput.type = 'text';
+  nameInput.className = 'team-picker-input';
+  nameInput.value = team.name;
+  nameInput.maxLength = 60;
+  nameLabel2.appendChild(nameInput);
+  form.appendChild(nameLabel2);
+
+  const pwLabel = document.createElement('label');
+  pwLabel.textContent = 'Nieuw wachtwoord (laat leeg om te behouden)';
+  const pwInput = document.createElement('input');
+  pwInput.type = 'password';
+  pwInput.className = 'team-picker-input';
+  pwInput.maxLength = 100;
+  pwLabel.appendChild(pwInput);
+  form.appendChild(pwLabel);
+
+  const playersTitle = document.createElement('div');
+  playersTitle.className = 'mod-manage-players-title';
+  playersTitle.textContent = 'Spelers';
+  form.appendChild(playersTitle);
+
+  const playersList = document.createElement('div');
+  playersList.className = 'mod-manage-players-list';
+  form.appendChild(playersList);
+
+  function renderEditPlayers() {
+    playersList.innerHTML = '';
+    editPlayers.forEach((p, idx) => {
+      const pRow = document.createElement('div');
+      pRow.className = 'player-row';
+      const pName = document.createElement('span');
+      pName.className = 'player-name';
+      pName.textContent = p.name;
+      const pDel = document.createElement('button');
+      pDel.className = 'current-item-remove player-remove';
+      pDel.textContent = '✕';
+      pDel.addEventListener('click', () => { editPlayers.splice(idx, 1); renderEditPlayers(); });
+      pRow.appendChild(pName);
+      pRow.appendChild(pDel);
+      playersList.appendChild(pRow);
+    });
+  }
+  renderEditPlayers();
+
+  const addRow = document.createElement('div');
+  addRow.className = 'add-player-row';
+  const newPlayerInput = document.createElement('input');
+  newPlayerInput.type = 'text';
+  newPlayerInput.className = 'player-field';
+  newPlayerInput.placeholder = 'Naam';
+  const addBtn = document.createElement('button');
+  addBtn.className = 'btn-secondary btn-sm';
+  addBtn.textContent = '+ Speler';
+  addBtn.addEventListener('click', () => {
+    const name = newPlayerInput.value.trim();
+    if (!name) return;
+    editPlayers.push({ name });
+    newPlayerInput.value = '';
+    renderEditPlayers();
+  });
+  newPlayerInput.addEventListener('keydown', e => { if (e.key === 'Enter') addBtn.click(); });
+  addRow.appendChild(newPlayerInput);
+  addRow.appendChild(addBtn);
+  form.appendChild(addRow);
+
+  const editBtns = document.createElement('div');
+  editBtns.className = 'mod-manage-edit-btns';
+
+  const saveBtn = document.createElement('button');
+  saveBtn.className = 'btn-primary btn-sm';
+  saveBtn.textContent = 'Opslaan';
+
+  const cancelBtn = document.createElement('button');
+  cancelBtn.className = 'btn-secondary btn-sm';
+  cancelBtn.textContent = 'Annuleer';
+
+  editBtns.appendChild(saveBtn);
+  editBtns.appendChild(cancelBtn);
+  form.appendChild(editBtns);
+  row.appendChild(form);
+
+  editBtn.addEventListener('click', () => {
+    const isOpen = form.style.display !== 'none';
+    form.style.display = isOpen ? 'none' : 'block';
+    if (!isOpen) nameInput.focus();
+  });
+
+  delBtn.addEventListener('click', async () => {
+    if (!confirm(`Team "${team.name}" verwijderen? Dit kan niet ongedaan worden gemaakt.`)) return;
+    try { await fbDeleteTeam(_modEventId, team.id); }
+    catch (err) { alert('Verwijderen mislukt: ' + err.message); }
+  });
+
+  saveBtn.addEventListener('click', async () => {
+    const newName = nameInput.value.trim();
+    if (!newName) { alert('Teamnaam mag niet leeg zijn.'); return; }
+    const updates = { name: newName, players: editPlayers };
+    if (pwInput.value) updates.passwordHash = await hashPassword(pwInput.value);
+    saveBtn.disabled = true;
+    saveBtn.textContent = 'Opslaan...';
+    try {
+      await fbUpdateTeam(_modEventId, team.id, updates);
+      form.style.display = 'none';
+    } catch (err) {
+      alert('Opslaan mislukt: ' + err.message);
+    } finally {
+      saveBtn.disabled = false;
+      saveBtn.textContent = 'Opslaan';
+    }
+  });
+
+  cancelBtn.addEventListener('click', () => { form.style.display = 'none'; });
+
+  return row;
+}
+
+// ── Mod view: tab switching & add-team ───────────
+
+document.getElementById('mod-tab-beheer').addEventListener('click', () => {
+  document.getElementById('mod-panel-beheer').style.display = 'block';
+  document.getElementById('mod-panel-overzicht').style.display = 'none';
+  document.getElementById('mod-tab-beheer').classList.add('mod-tab-active');
+  document.getElementById('mod-tab-overzicht').classList.remove('mod-tab-active');
+});
+
+document.getElementById('mod-tab-overzicht').addEventListener('click', () => {
+  document.getElementById('mod-panel-beheer').style.display = 'none';
+  document.getElementById('mod-panel-overzicht').style.display = 'block';
+  document.getElementById('mod-tab-beheer').classList.remove('mod-tab-active');
+  document.getElementById('mod-tab-overzicht').classList.add('mod-tab-active');
+});
+
+document.getElementById('btn-mod-add-team').addEventListener('click', async () => {
+  const name = document.getElementById('mod-new-team-name').value.trim();
+  if (!name) return;
+  const pw = document.getElementById('mod-new-team-password').value;
+  const passwordHash = await hashPassword(pw);
+  const errEl = document.getElementById('mod-add-team-error');
+  errEl.style.display = 'none';
+  try {
+    await fbCreateTeam(_modEventId, name, passwordHash);
+    document.getElementById('mod-new-team-name').value = '';
+    document.getElementById('mod-new-team-password').value = '';
+  } catch (err) {
+    errEl.textContent = 'Aanmaken mislukt: ' + err.message;
+    errEl.style.display = 'block';
+  }
 });
 
 // ── My events (localStorage) ──────────────────────
