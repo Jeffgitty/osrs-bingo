@@ -1889,7 +1889,7 @@ function handleWinnersUpdate(winners) {
     if (!_announcedWinnerIds.has(w.teamId)) {
       _announcedWinnerIds.add(w.teamId);
       const isOurTeam = w.teamId === fbTeamId;
-      showWinnerAnnouncement(w, isOurTeam);
+      if (isOurTeam) showWinnerAnnouncement(w, true);
     }
   });
   if (_lastKnownTeams.length) renderScoreboard(_lastKnownTeams);
