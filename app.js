@@ -1674,6 +1674,7 @@ async function joinTeam(eventId, teamId) {
     document.querySelector('.add-player-row').style.display = 'none';
     activatePlayMode();
     document.getElementById('play-scoreboard-wrap').style.display = 'block';
+    document.getElementById('btn-switch-team').style.display = '';
 
     if (fbUnsubTeam) fbUnsubTeam();
     fbUnsubTeam = fbListenTeam(eventId, teamId, data => {
@@ -1705,6 +1706,39 @@ async function joinTeam(eventId, teamId) {
     alert('Team laden mislukt: ' + err.message);
   }
 }
+
+function leaveTeam() {
+  if (fbUnsubTeam)       { fbUnsubTeam();       fbUnsubTeam = null; }
+  if (fbUnsubScoreboard) { fbUnsubScoreboard(); fbUnsubScoreboard = null; }
+  if (fbUnsubWinners)    { fbUnsubWinners();    fbUnsubWinners = null; }
+  if (fbUnsubPaused)     { fbUnsubPaused();     fbUnsubPaused = null; }
+
+  if (fbEventId) localStorage.removeItem('bingo-fb-team-' + fbEventId);
+  fbTeamId = null;
+  _fbWinRecorded = false;
+  _announcedWinnerIds = new Set();
+  _lastKnownTeams = [];
+  _eventWinners = [];
+  teamState = { teamName: '', players: [] };
+
+  state.crossed = state.cells.map(c => cellHasItems(c) ? c.items.map(() => ({ checked: false, date: null })) : []);
+  renderGrid(); applyStyle(); updateScore(); updateCharts();
+
+  document.getElementById('play-scoreboard-wrap').style.display = 'none';
+  document.getElementById('scoreboard-list').innerHTML = '';
+  document.getElementById('team-name-display').style.display = 'none';
+  document.getElementById('team-name-input').style.display = '';
+  document.getElementById('team-name-input').value = '';
+  document.getElementById('event-paused-banner').style.display = 'none';
+  document.getElementById('btn-switch-team').style.display = 'none';
+
+  showTeamPicker(fbEventId);
+}
+
+document.getElementById('btn-switch-team').addEventListener('click', () => {
+  if (!confirm('Wil je van team wisselen? Je huidige voortgang blijft behouden in het huidige team.')) return;
+  leaveTeam();
+});
 
 function applyCardUpdate(newCard) {
   if (!isFbMode) return;
