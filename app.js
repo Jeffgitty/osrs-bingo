@@ -1850,7 +1850,7 @@ function showWinnerAnnouncement(winner, isOurTeam) {
   const msgEl = document.getElementById('winner-announcement-msg');
   if (isOurTeam) {
     titleEl.textContent = 'QUEST COMPLETE!';
-    msgEl.textContent = `${winner.teamName} heeft de volledige kaart voltooid! ★`;
+    msgEl.textContent = `★★★ GEFELICITEERD, je hebt Gewonnen ★★★`;
   } else {
     titleEl.textContent = 'Team heeft gewonnen!';
     msgEl.textContent = `${winner.teamName} heeft als eerste de kaart voltooid!`;
