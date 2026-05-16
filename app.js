@@ -2732,12 +2732,6 @@ async function showPublishedEvents(resolveEditor) {
     showEditorLanding().then(resolveEditor);
   };
 
-  let myEventIds = new Set();
-  try {
-    const myEvs = JSON.parse(localStorage.getItem('bingo-my-events') || '[]');
-    myEvs.forEach(e => myEventIds.add(e.id));
-  } catch {}
-
   try {
     const events = await fbListAllEvents(30);
     loadingEl.style.display = 'none';
@@ -2745,13 +2739,13 @@ async function showPublishedEvents(resolveEditor) {
       emptyEl.style.display = 'block';
       return;
     }
-    events.forEach(ev => listEl.appendChild(buildPublishedEventRow(ev, myEventIds, overlay, resolveEditor)));
+    events.forEach(ev => listEl.appendChild(buildPublishedEventRow(ev, overlay, resolveEditor)));
   } catch (err) {
     loadingEl.textContent = 'Laden mislukt: ' + err.message;
   }
 }
 
-function buildPublishedEventRow(ev, myEventIds, overlay, resolveEditor) {
+function buildPublishedEventRow(ev, overlay, resolveEditor) {
   const row = document.createElement('div');
   row.className = 'editor-event-row';
 
@@ -2795,29 +2789,31 @@ function buildPublishedEventRow(ev, myEventIds, overlay, resolveEditor) {
   });
   actions.appendChild(copyBtn);
 
-  if (myEventIds.has(ev.id)) {
-    const modLink = document.createElement('a');
-    modLink.href = modUrl;
-    modLink.target = '_blank';
-    modLink.className = 'btn-secondary btn-sm';
-    modLink.title = 'Open moderator view';
-    modLink.innerHTML = '&#9876; Mod';
-    actions.appendChild(modLink);
+  const modLink = document.createElement('a');
+  modLink.href = modUrl;
+  modLink.target = '_blank';
+  modLink.className = 'btn-secondary btn-sm';
+  modLink.title = 'Open moderator view';
+  modLink.innerHTML = '&#9876; Mod';
+  actions.appendChild(modLink);
 
-    if (ev.card) {
-      const editBtn = document.createElement('button');
-      editBtn.className = 'btn-secondary btn-sm';
-      editBtn.textContent = '✏ Bewerken';
-      editBtn.addEventListener('click', async () => {
-        overlay.style.display = 'none';
-        _editingEventId = ev.id;
-        document.getElementById('event-name-input').value = ev.name || '';
-        setEditModeLabel(ev.name || ev.id);
-        await applyLoadedState(ev.card);
-        resolveEditor();
-      });
-      actions.appendChild(editBtn);
-    }
+  if (ev.card) {
+    const editBtn = document.createElement('button');
+    editBtn.className = 'btn-secondary btn-sm';
+    editBtn.textContent = '✏ Bewerken';
+    editBtn.addEventListener('click', async () => {
+      if (ev.modPasswordHash) {
+        const ok = await promptModPassword(ev.modPasswordHash);
+        if (!ok) return;
+      }
+      overlay.style.display = 'none';
+      _editingEventId = ev.id;
+      document.getElementById('event-name-input').value = ev.name || '';
+      setEditModeLabel(ev.name || ev.id);
+      await applyLoadedState(ev.card);
+      resolveEditor();
+    });
+    actions.appendChild(editBtn);
   }
 
   row.appendChild(actions);
