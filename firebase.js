@@ -133,3 +133,21 @@ async function fbDeleteTeam(eventId, teamId) {
   await fbEnsureAuth();
   await db.collection('events').doc(eventId).collection('teams').doc(teamId).delete();
 }
+
+async function fbRecordWin(eventId, teamId, teamName) {
+  await fbEnsureAuth();
+  const ref = db.collection('events').doc(eventId);
+  const doc = await ref.get();
+  const existing = (doc.data() || {}).winners || [];
+  if (existing.some(w => w.teamId === teamId)) return;
+  await ref.update({
+    winners: firebase.firestore.FieldValue.arrayUnion({
+      teamId, teamName, completedAt: new Date().toISOString(),
+    }),
+  });
+}
+
+function fbListenWinners(eventId, callback) {
+  return db.collection('events').doc(eventId)
+    .onSnapshot(doc => { if (doc.exists) callback(doc.data().winners || []); });
+}

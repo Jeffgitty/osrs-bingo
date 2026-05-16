@@ -44,12 +44,21 @@ let fbTeamId = null;
 let fbUnsubTeam = null;
 let fbUnsubScoreboard = null;
 let fbUnsubCard = null;
+let fbUnsubWinners = null;
 let _fbIncoming = false;
+
+// ── Win tracking ──────────────────────────────────
+let _fbWinRecorded = false;
+let _eventWinners = [];
+let _lastKnownTeams = [];
+let _announcedWinnerIds = new Set();
 
 // ── Moderator view ────────────────────────────────
 let isModMode = false;
 let modCardDef = null;
 let _modEventId = null;
+let _modWinners = [];
+let _modLastTeams = [];
 
 // ── Editor draft & edit mode ──────────────────────
 let _editingEventId = null;
@@ -889,6 +898,14 @@ function saveProgress() {
     const { total } = calculateScore();
     const tilesComplete = countCompletedTiles();
     fbSaveTeamProgress(fbEventId, fbTeamId, state.crossed, total, teamState.players, teamState.teamName, tilesComplete).catch(() => {});
+    if (!_fbWinRecorded) {
+      const n = state.gridSize;
+      const allDone = Array.from({length: n * n}, (_, i) => i).every(isCellComplete);
+      if (allDone) {
+        _fbWinRecorded = true;
+        fbRecordWin(fbEventId, fbTeamId, teamState.teamName).catch(() => {});
+      }
+    }
   }
 }
 
@@ -1552,6 +1569,8 @@ async function joinTeam(eventId, teamId) {
       return;
     }
     fbTeamId = teamId;
+    _fbWinRecorded = false;
+    _announcedWinnerIds = new Set();
     localStorage.setItem('bingo-fb-team-' + eventId, teamId);
     applyFbCrossed(team.crossed);
     teamState.teamName = team.name;
@@ -1576,7 +1595,13 @@ async function joinTeam(eventId, teamId) {
     });
 
     if (fbUnsubScoreboard) fbUnsubScoreboard();
-    fbUnsubScoreboard = fbListenAllTeams(eventId, renderScoreboard);
+    fbUnsubScoreboard = fbListenAllTeams(eventId, teams => {
+      _lastKnownTeams = teams;
+      renderScoreboard(teams);
+    });
+
+    if (fbUnsubWinners) fbUnsubWinners();
+    fbUnsubWinners = fbListenWinners(eventId, handleWinnersUpdate);
   } catch (err) {
     hideFbLoading();
     alert('Team laden mislukt: ' + err.message);
@@ -1625,13 +1650,35 @@ function renderScoreboard(teams) {
   const n = state.gridSize;
   const totalTiles = n * n - (state.hasFreeCell ? 1 : 0);
   const el = document.getElementById('scoreboard-list');
-  if (!teams.length) { el.innerHTML = '<div class="score-empty">Geen teams</div>'; return; }
-  el.innerHTML = teams.map((t, i) => {
+  const medals = ['🥇', '🥈', '🥉'];
+  const winnerIds = new Set(_eventWinners.map(w => w.teamId));
+
+  let html = '';
+  if (_eventWinners.length) {
+    html += `<div class="scoreboard-winners-section">
+      <div class="scoreboard-winners-label">Winnaars</div>`;
+    _eventWinners.forEach((w, i) => {
+      const medal = medals[i] || '🏅';
+      const time = new Date(w.completedAt).toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
+      const isYou = w.teamId === fbTeamId;
+      html += `<div class="scoreboard-winner-row${isYou ? ' scoreboard-you' : ''}">
+        <span class="winner-medal">${medal}</span>
+        <span class="winner-name">${escHtml(w.teamName)}${isYou ? ' <em>(jij)</em>' : ''}</span>
+        <span class="winner-time">${time}</span>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  if (!teams.length) { el.innerHTML = html + '<div class="score-empty">Geen teams</div>'; return; }
+  html += teams.map((t, i) => {
     const isYou = t.id === fbTeamId;
+    const isWinner = winnerIds.has(t.id);
     const tiles = t.tilesComplete !== undefined ? t.tilesComplete : 0;
     const pct = totalTiles > 0 ? Math.round(tiles / totalTiles * 100) : 0;
-    return `<div class="scoreboard-row${isYou ? ' scoreboard-you' : ''}">
-      <span class="scoreboard-rank">#${i + 1}</span>
+    const rank = isWinner ? '👑' : `#${i + 1}`;
+    return `<div class="scoreboard-row${isYou ? ' scoreboard-you' : ''}${isWinner ? ' scoreboard-winner' : ''}">
+      <span class="scoreboard-rank">${rank}</span>
       <div class="scoreboard-info">
         <div class="scoreboard-name">${escHtml(t.name)}${isYou ? ' <em>(jij)</em>' : ''}</div>
         <div class="scoreboard-progress-bar"><div class="scoreboard-progress-fill" style="width:${pct}%"></div></div>
@@ -1639,6 +1686,60 @@ function renderScoreboard(teams) {
       <span class="scoreboard-pts">${t.score || 0} pt</span>
     </div>`;
   }).join('');
+  el.innerHTML = html;
+}
+
+// ── Winner announcement ───────────────────────────
+
+function showWinnerAnnouncement(winner, isOurTeam) {
+  const banner = document.getElementById('winner-announcement');
+  const titleEl = document.getElementById('winner-announcement-title');
+  const msgEl = document.getElementById('winner-announcement-msg');
+  if (isOurTeam) {
+    titleEl.textContent = 'QUEST COMPLETE!';
+    msgEl.textContent = `${winner.teamName} heeft de volledige kaart voltooid! ★`;
+  } else {
+    titleEl.textContent = 'Team heeft gewonnen!';
+    msgEl.textContent = `${winner.teamName} heeft als eerste de kaart voltooid!`;
+  }
+  banner.classList.add('winner-announcement-active');
+  clearTimeout(banner._t);
+  banner._t = setTimeout(() => banner.classList.remove('winner-announcement-active'), 8000);
+  launchConfetti();
+}
+
+function launchConfetti() {
+  const colors = ['#ffd700', '#c8aa6e', '#14a03c', '#e65c00', '#3a9fff', '#ff69b4'];
+  const container = document.getElementById('confetti-container');
+  container.innerHTML = '';
+  for (let i = 0; i < 90; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    const size = Math.random() * 8 + 5;
+    piece.style.cssText = `
+      left:${Math.random() * 100}vw;
+      width:${size}px;height:${size}px;
+      background:${colors[Math.floor(Math.random() * colors.length)]};
+      border-radius:${Math.random() > 0.5 ? '50%' : '2px'};
+      animation-duration:${Math.random() * 2 + 2.5}s;
+      animation-delay:${Math.random() * 1.2}s;
+      transform:rotate(${Math.random() * 360}deg);
+    `;
+    container.appendChild(piece);
+  }
+  setTimeout(() => { container.innerHTML = ''; }, 4500);
+}
+
+function handleWinnersUpdate(winners) {
+  _eventWinners = winners;
+  winners.forEach(w => {
+    if (!_announcedWinnerIds.has(w.teamId)) {
+      _announcedWinnerIds.add(w.teamId);
+      const isOurTeam = w.teamId === fbTeamId;
+      showWinnerAnnouncement(w, isOurTeam);
+    }
+  });
+  if (_lastKnownTeams.length) renderScoreboard(_lastKnownTeams);
 }
 
 // ── Moderator view ────────────────────────────────
@@ -1730,16 +1831,41 @@ function buildMiniGrid(cardDef, crossedData) {
   return { grid, completeCount, countable };
 }
 
+function renderModWinners(winners) {
+  const el = document.getElementById('mod-winners-section');
+  if (!el) return;
+  if (!winners.length) { el.style.display = 'none'; return; }
+  const medals = ['🥇', '🥈', '🥉'];
+  el.style.display = 'block';
+  el.innerHTML = `<div class="mod-winners-title">Winnaars — Volle kaart voltooid</div>` +
+    winners.map((w, i) => {
+      const medal = medals[i] || '🏅';
+      const dt = new Date(w.completedAt);
+      const time = dt.toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
+      const date = dt.toLocaleDateString('nl-NL');
+      return `<div class="mod-winner-row">
+        <span class="mod-winner-medal">${medal}</span>
+        <span class="mod-winner-name">${escHtml(w.teamName)}</span>
+        <span class="mod-winner-time">${date} ${time}</span>
+      </div>`;
+    }).join('');
+}
+
 function buildTeamCard(team, cardDef) {
+  const winnerIdx = _modWinners.findIndex(w => w.teamId === team.id);
+  const isWinner = winnerIdx !== -1;
+  const medals = ['🥇', '🥈', '🥉'];
+
   const card = document.createElement('div');
-  card.className = 'mod-team-card';
+  card.className = 'mod-team-card' + (isWinner ? ' mod-team-winner' : '');
 
   const { grid, completeCount, countable } = buildMiniGrid(cardDef, team.crossed);
   const pct = countable > 0 ? Math.round(completeCount / countable * 100) : 0;
 
   const header = document.createElement('div');
   header.className = 'mod-card-header';
-  header.innerHTML = `<span class="mod-team-name">${escHtml(team.name)}</span><span class="mod-team-score">${team.score || 0} pt</span>`;
+  const medal = isWinner ? `<span class="mod-winner-badge">${medals[winnerIdx] || '🏅'}</span>` : '';
+  header.innerHTML = `${medal}<span class="mod-team-name">${escHtml(team.name)}</span><span class="mod-team-score">${team.score || 0} pt</span>`;
   card.appendChild(header);
 
   const progressBar = document.createElement('div');
@@ -1866,8 +1992,14 @@ async function loadModView(eventId) {
 
     fbListenEventClosed(eventId, applyClosedState);
     fbListenAllTeams(eventId, teams => {
+      _modLastTeams = teams;
       renderModTeams(teams);
       renderModManageTeams(teams);
+    });
+    fbListenWinners(eventId, winners => {
+      _modWinners = winners;
+      renderModWinners(winners);
+      if (_modLastTeams.length) renderModTeams(_modLastTeams);
     });
   } catch (err) {
     hideFbLoading();

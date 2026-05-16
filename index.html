@@ -292,9 +292,22 @@
 
     <!-- Overzicht panel -->
     <div id="mod-panel-overzicht" class="mod-panel" style="display:none">
+      <div id="mod-winners-section" class="mod-winners-section" style="display:none"></div>
       <div id="mod-teams-grid" class="mod-teams-grid"></div>
     </div>
   </div>
+
+  <!-- ── Winner announcement banner ── -->
+  <div id="winner-announcement" class="winner-announcement">
+    <div class="winner-announcement-inner">
+      <div id="winner-announcement-title" class="winner-announcement-title">QUEST COMPLETE!</div>
+      <div id="winner-announcement-msg" class="winner-announcement-msg"></div>
+      <button class="winner-announcement-close" onclick="document.getElementById('winner-announcement').classList.remove('winner-announcement-active')">&#215;</button>
+    </div>
+  </div>
+
+  <!-- ── Confetti container ── -->
+  <div id="confetti-container" class="confetti-container" aria-hidden="true"></div>
 
   <!-- ── Celebration overlay ── -->
   <div id="celebration-overlay" class="celebration-overlay">

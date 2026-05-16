@@ -2465,3 +2465,204 @@ label.pts-label {
     font-size: 18px;
   }
 }
+
+/* ── Winner announcement banner ─────────────────── */
+.winner-announcement {
+  position: fixed;
+  top: -160px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 600;
+  width: min(560px, 96vw);
+  transition: top 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+  pointer-events: none;
+}
+
+.winner-announcement.winner-announcement-active {
+  top: 18px;
+  pointer-events: auto;
+}
+
+.winner-announcement-inner {
+  background: linear-gradient(135deg, #1a1100 0%, #2a1e00 60%, #1a1100 100%);
+  border: 2px solid #ffd700;
+  border-radius: 8px;
+  padding: 18px 48px 18px 24px;
+  box-shadow:
+    0 0 0 1px rgba(255, 215, 0, 0.2),
+    0 0 40px rgba(255, 215, 0, 0.25),
+    0 8px 32px rgba(0,0,0,0.8);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.winner-announcement-title {
+  font-family: 'Cinzel Decorative', 'Cinzel', serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 3px;
+  text-shadow: 0 0 20px rgba(255, 215, 0, 0.7);
+}
+
+.winner-announcement-msg {
+  font-size: 14px;
+  color: var(--text);
+  letter-spacing: 0.3px;
+}
+
+.winner-announcement-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.winner-announcement-close:hover { color: var(--text); }
+
+/* ── Confetti ────────────────────────────────────── */
+.confetti-container {
+  position: fixed;
+  inset: 0;
+  z-index: 590;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.confetti-piece {
+  position: absolute;
+  top: -16px;
+  border-radius: 2px;
+  animation: confetti-fall linear forwards;
+}
+
+@keyframes confetti-fall {
+  0%   { transform: translateY(0) rotate(0deg); opacity: 1; }
+  85%  { opacity: 1; }
+  100% { transform: translateY(105vh) rotate(720deg); opacity: 0; }
+}
+
+/* ── Scoreboard winners section ──────────────────── */
+.scoreboard-winners-section {
+  border: 1px solid rgba(255, 215, 0, 0.35);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 6px;
+  background: rgba(255, 215, 0, 0.05);
+}
+
+.scoreboard-winners-label {
+  font-size: 10px;
+  color: #ffd700;
+  font-weight: 700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 5px;
+}
+
+.scoreboard-winner-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  font-size: 13px;
+}
+
+.scoreboard-winner-row + .scoreboard-winner-row {
+  border-top: 1px solid rgba(255,255,255,0.06);
+}
+
+.winner-medal {
+  font-size: 16px;
+  flex-shrink: 0;
+  width: 22px;
+}
+
+.winner-name {
+  flex: 1;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.winner-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.scoreboard-row.scoreboard-winner {
+  border-color: rgba(255, 215, 0, 0.4);
+  background: rgba(255, 215, 0, 0.06);
+}
+
+.scoreboard-row.scoreboard-winner .scoreboard-rank {
+  color: #ffd700;
+}
+
+/* ── Moderator winners section ───────────────────── */
+.mod-winners-section {
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 8px;
+  padding: 14px 18px;
+  margin-bottom: 18px;
+  background: rgba(255, 215, 0, 0.04);
+}
+
+.mod-winners-title {
+  font-family: 'Cinzel', serif;
+  font-size: 13px;
+  font-weight: 700;
+  color: #ffd700;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin-bottom: 10px;
+}
+
+.mod-winner-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  font-size: 13px;
+}
+
+.mod-winner-row + .mod-winner-row {
+  border-top: 1px solid rgba(255,255,255,0.07);
+}
+
+.mod-winner-medal {
+  font-size: 18px;
+  flex-shrink: 0;
+  width: 26px;
+}
+
+.mod-winner-name {
+  flex: 1;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.mod-winner-time {
+  font-size: 11px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.mod-team-card.mod-team-winner {
+  border-color: rgba(255, 215, 0, 0.5);
+  box-shadow: 0 0 12px rgba(255, 215, 0, 0.12);
+}
+
+.mod-winner-badge {
+  font-size: 16px;
+  margin-right: 4px;
+}
