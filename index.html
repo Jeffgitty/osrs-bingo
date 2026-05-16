@@ -255,13 +255,6 @@
 
         <div id="current-items-panel"></div>
 
-        <div id="tile-points-wrap" style="display:none">
-          <label class="info-label pts-label">
-            Tile bonus punten
-            <input type="number" id="tile-points-input" min="0" value="0" class="pts-input">
-          </label>
-        </div>
-
         <div id="info-field-wrap" style="display:none">
           <label class="info-label">
             Info tekst (optioneel)
@@ -273,11 +266,17 @@
         <div id="search-results"></div>
 
         <div id="staged-item-wrap" style="display:none" class="staged-item-wrap">
-          <div id="staged-item-preview" class="staged-item-preview"></div>
-          <label class="info-label pts-label">
-            Item punten
-            <input type="number" id="staged-item-points" min="0" value="0" class="pts-input staged-pts-input">
-          </label>
+          <div id="staged-item-preview" class="staged-item-preview" style="display:none"></div>
+          <div class="pts-group">
+            <label id="staged-item-pts-row" class="info-label pts-label" style="display:none">
+              Item punten
+              <input type="number" id="staged-item-points" min="0" value="0" class="pts-input staged-pts-input">
+            </label>
+            <label class="info-label pts-label">
+              Tile bonus punten
+              <input type="number" id="tile-points-input" min="0" value="0" class="pts-input staged-pts-input">
+            </label>
+          </div>
           <button id="btn-add-staged" class="btn-primary btn-add-staged" disabled>+ Toevoegen aan tile</button>
         </div>
       </div>

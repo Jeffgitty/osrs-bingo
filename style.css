@@ -515,6 +515,12 @@ label select:focus { border-color: var(--accent); }
 
 .staged-pts-input { width: 52px; }
 
+.pts-group {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
 .btn-add-staged {
   width: 100%;
   padding: 8px;

@@ -520,7 +520,7 @@ function selectCell(index) {
   bingoCard.querySelectorAll('.bingo-cell').forEach((el, i) => el.classList.toggle('selected', i === index));
   searchInput.disabled = false;
   document.getElementById('info-field-wrap').style.display = 'block';
-  document.getElementById('tile-points-wrap').style.display = 'block';
+  document.getElementById('staged-item-wrap').style.display = 'block';
   updateSearchPanel();
   updateAddBtn();
 }
@@ -803,6 +803,8 @@ function stageItem(title, row) {
   searchResults.querySelectorAll('.search-result').forEach(r => r.classList.remove('staged'));
   row.classList.add('staged');
   stagedItem = { title, row };
+  document.getElementById('staged-item-preview').style.display = 'flex';
+  document.getElementById('staged-item-pts-row').style.display = 'flex';
   renderStagedPreview();
   updateAddBtn();
 }
@@ -820,7 +822,6 @@ function renderStagedPreview() {
   const nameEl = document.createElement('span');
   nameEl.textContent = title;
   preview.appendChild(nameEl);
-  document.getElementById('staged-item-wrap').style.display = 'block';
 }
 
 function updateAddBtn() {
@@ -893,7 +894,10 @@ async function applyLoadedState(loaded) {
   state.selectedCell = null;
   resizeCells(); renderGrid(); applyStyle(); syncUiToState();
   document.getElementById('info-field-wrap').style.display = 'none';
-  document.getElementById('tile-points-wrap').style.display = 'none';
+  document.getElementById('staged-item-wrap').style.display = 'none';
+  document.getElementById('staged-item-preview').style.display = 'none';
+  document.getElementById('staged-item-pts-row').style.display = 'none';
+  stagedItem = null;
   document.getElementById('current-items-panel').innerHTML = '';
   refetchAllImages();
   saveDraft();
@@ -1317,8 +1321,9 @@ document.getElementById('grid-size').addEventListener('change', e => {
   searchResults.innerHTML = '';
   stagedItem = null;
   document.getElementById('staged-item-wrap').style.display = 'none';
+  document.getElementById('staged-item-preview').style.display = 'none';
+  document.getElementById('staged-item-pts-row').style.display = 'none';
   document.getElementById('info-field-wrap').style.display = 'none';
-  document.getElementById('tile-points-wrap').style.display = 'none';
   document.getElementById('current-items-panel').innerHTML = '';
   renderGrid(); applyStyle();
   saveDraft();
