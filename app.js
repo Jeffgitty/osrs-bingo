@@ -1700,6 +1700,17 @@ async function joinTeam(eventId, teamId) {
       eventPaused = paused;
       const banner = document.getElementById('event-paused-banner');
       if (banner) banner.style.display = paused ? 'flex' : 'none';
+      if (!paused) {
+        _fbWinRecorded = false;
+        _eventWinners = [];
+        _announcedWinnerIds = new Set();
+        const elapsedEl = document.getElementById('countdown-elapsed');
+        if (elapsedEl) { elapsedEl.style.display = 'none'; elapsedEl.textContent = ''; }
+        const annEl = document.getElementById('winner-announcement');
+        if (annEl) annEl.style.display = 'none';
+        startCountdown();
+        if (_lastKnownTeams.length) renderScoreboard(_lastKnownTeams);
+      }
     });
   } catch (err) {
     hideFbLoading();

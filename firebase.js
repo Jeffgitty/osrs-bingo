@@ -154,7 +154,7 @@ async function fbPauseEvent(eventId) {
 
 async function fbResumeEvent(eventId) {
   await fbEnsureAuth();
-  await db.collection('events').doc(eventId).update({ paused: false });
+  await db.collection('events').doc(eventId).update({ paused: false, winners: [] });
 }
 
 function fbListenPaused(eventId, callback) {
