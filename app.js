@@ -2195,8 +2195,12 @@ async function loadModView(eventId) {
     });
 
     document.getElementById('btn-mod-back-editor').onclick = () => {
-      modView.style.display = 'none';
-      document.querySelector('.app').style.display = '';
+      sessionStorage.setItem('bingo-pending-edit', JSON.stringify({
+        eventId,
+        eventName: data.name || '',
+        card: modCardDef
+      }));
+      location.href = location.pathname;
     };
 
     fbListenEventClosed(eventId, applyClosedState);
@@ -2615,7 +2619,21 @@ setInterval(() => { if (!state.playMode && !isModMode) saveDraft(); }, 15000);
 // ── Editor landing ────────────────────────────────
 
 function showEditorLanding() {
-  return new Promise(resolve => {
+  return new Promise(async resolve => {
+    const pendingRaw = sessionStorage.getItem('bingo-pending-edit');
+    if (pendingRaw) {
+      sessionStorage.removeItem('bingo-pending-edit');
+      try {
+        const { eventId, eventName, card } = JSON.parse(pendingRaw);
+        _editingEventId = eventId;
+        document.getElementById('event-name-input').value = eventName || '';
+        setEditModeLabel(eventName || eventId);
+        await applyLoadedState(card);
+      } catch {}
+      resolve();
+      return;
+    }
+
     const overlay = document.getElementById('editor-landing-overlay');
     overlay.style.display = 'flex';
 
