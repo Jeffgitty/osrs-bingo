@@ -519,7 +519,6 @@ function selectCell(index) {
   state.selectedCell = index;
   bingoCard.querySelectorAll('.bingo-cell').forEach((el, i) => el.classList.toggle('selected', i === index));
   searchInput.disabled = false;
-  document.getElementById('info-field-wrap').style.display = 'block';
   document.getElementById('staged-item-wrap').style.display = 'block';
   updateSearchPanel();
   updateAddBtn();
@@ -893,7 +892,6 @@ async function applyLoadedState(loaded) {
   state.crossed = state.cells.map(c => cellHasItems(c) ? c.items.map(() => ({ checked: false, date: null })) : []);
   state.selectedCell = null;
   resizeCells(); renderGrid(); applyStyle(); syncUiToState();
-  document.getElementById('info-field-wrap').style.display = 'none';
   document.getElementById('staged-item-wrap').style.display = 'none';
   document.getElementById('staged-item-preview').style.display = 'none';
   document.getElementById('staged-item-pts-row').style.display = 'none';
@@ -1323,7 +1321,6 @@ document.getElementById('grid-size').addEventListener('change', e => {
   document.getElementById('staged-item-wrap').style.display = 'none';
   document.getElementById('staged-item-preview').style.display = 'none';
   document.getElementById('staged-item-pts-row').style.display = 'none';
-  document.getElementById('info-field-wrap').style.display = 'none';
   document.getElementById('current-items-panel').innerHTML = '';
   renderGrid(); applyStyle();
   saveDraft();
