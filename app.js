@@ -2194,6 +2194,11 @@ async function loadModView(eventId) {
       }
     });
 
+    document.getElementById('btn-mod-back-editor').onclick = () => {
+      modView.style.display = 'none';
+      document.querySelector('.app').style.display = '';
+    };
+
     fbListenEventClosed(eventId, applyClosedState);
     fbListenAllTeams(eventId, teams => {
       _modLastTeams = teams;
