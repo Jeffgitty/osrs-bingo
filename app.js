@@ -27,6 +27,7 @@ const state = {
   crossed: [],
   bonuses: { row: 0, col: 0, diagLeft: 0, diagRight: 0, fullCard: 0 },
   endDate: '',
+  endTime: '',
   rules: '',
 };
 
@@ -70,9 +71,12 @@ let _draftTimer = null;
 let _prevLineCount = 0;
 let _prevFullCard = false;
 
-// ── Event closed state ────────────────────────────
+// ── Event closed / paused state ───────────────────
 let eventClosed = false;
+let eventPaused = false;
 let fbUnsubEventClosed = null;
+let fbUnsubPaused = null;
+let _eventCreatedAt = null;
 
 // ── DOM refs ──────────────────────────────────────
 const bingoCard     = document.getElementById('bingo-card');
@@ -460,7 +464,7 @@ function formatDateShort(d) {
 // ── Item click → date picker ──────────────────────
 
 function handleItemClick(cellIndex, itemIndex) {
-  if (eventClosed) return;
+  if (eventClosed || eventPaused) return;
   const cur = state.crossed[cellIndex][itemIndex];
   if (cur && cur.checked) {
     state.crossed[cellIndex][itemIndex] = { checked: false, date: null };
@@ -843,6 +847,7 @@ async function applyLoadedState(loaded) {
   if (loaded.style) Object.assign(state.style, loaded.style);
   if (loaded.bonuses) Object.assign(state.bonuses, loaded.bonuses);
   state.endDate = loaded.endDate || '';
+  state.endTime = loaded.endTime || '';
   state.rules = loaded.rules || '';
 
   state.cells = (Array.isArray(loaded.cells) ? loaded.cells : []).map(c =>
@@ -905,7 +910,9 @@ function saveProgress() {
       const allDone = Array.from({length: n * n}, (_, i) => i).every(isCellComplete);
       if (allDone) {
         _fbWinRecorded = true;
-        fbRecordWin(fbEventId, fbTeamId, teamState.teamName).catch(() => {});
+        fbRecordWin(fbEventId, fbTeamId, teamState.teamName)
+          .then(() => fbPauseEvent(fbEventId))
+          .catch(() => {});
       }
     }
   }
@@ -938,14 +945,25 @@ function startCountdown() {
     document.getElementById('countdown-end-label').textContent = '';
     return;
   }
-  const endMs = new Date(state.endDate + 'T23:59:59').getTime();
-  document.getElementById('countdown-end-label').textContent = 'Tot ' + formatDateNL(state.endDate);
+  const timeStr = state.endTime || '23:59';
+  const endMs = new Date(state.endDate + 'T' + timeStr + ':00').getTime();
+  const timeLabel = state.endTime ? ` ${timeStr}` : '';
+  document.getElementById('countdown-end-label').textContent = 'Tot ' + formatDateNL(state.endDate) + timeLabel;
 
   function tick() {
+    if (_eventWinners.length > 0) { clearInterval(countdownInterval); return; }
     const diff = endMs - Date.now();
     if (diff <= 0) {
-      document.getElementById('countdown-display').textContent = 'Afgelopen!';
       clearInterval(countdownInterval);
+      document.getElementById('countdown-display').textContent = 'Afgelopen!';
+      if (isFbMode && fbEventId && !_eventWinners.length && _lastKnownTeams.length) {
+        const topTeam = _lastKnownTeams[0];
+        if (topTeam) {
+          fbRecordWin(fbEventId, topTeam.id, topTeam.name)
+            .then(() => fbPauseEvent(fbEventId))
+            .catch(() => {});
+        }
+      }
       return;
     }
     const d = Math.floor(diff / 86400000);
@@ -957,6 +975,33 @@ function startCountdown() {
   }
   tick();
   countdownInterval = setInterval(tick, 1000);
+}
+
+function freezeCountdownOnWin(winner) {
+  clearInterval(countdownInterval);
+  const display = document.getElementById('countdown-display');
+  const label = document.getElementById('countdown-end-label');
+  const elapsedEl = document.getElementById('countdown-elapsed');
+  if (display) display.textContent = '⏸ Gepauzeerd';
+  if (label) label.textContent = '';
+  if (winner && _eventCreatedAt && elapsedEl) {
+    const elapsed = new Date(winner.completedAt).getTime() - _eventCreatedAt.getTime();
+    if (elapsed > 0) {
+      elapsedEl.textContent = 'Tijd tot 1e volle kaart: ' + formatElapsed(elapsed);
+      elapsedEl.style.display = 'block';
+    }
+  }
+}
+
+function formatElapsed(ms) {
+  const s = Math.floor(ms / 1000);
+  const d = Math.floor(s / 86400);
+  const h = Math.floor((s % 86400) / 3600);
+  const m = Math.floor((s % 3600) / 60);
+  const sec = s % 60;
+  if (d > 0) return `${d}d ${h}u ${m}m`;
+  if (h > 0) return `${h}u ${m}m ${sec}s`;
+  return `${m}m ${sec}s`;
 }
 
 function formatDateNL(d) {
@@ -1111,6 +1156,7 @@ async function loadFromHash() {
     if (loaded.style) Object.assign(state.style, loaded.style);
     if (loaded.bonuses) Object.assign(state.bonuses, loaded.bonuses);
     state.endDate = loaded.endDate || '';
+    state.endTime = loaded.endTime || '';
     state.rules = loaded.rules || '';
 
     if ((loaded.v === 2 || loaded.v === 3) && Array.isArray(loaded.cells)) {
@@ -1145,6 +1191,9 @@ function activatePlayMode() {
   document.getElementById('play-progress-wrap').style.display = 'flex';
   if (eventClosed) {
     document.getElementById('event-closed-banner').style.display = 'flex';
+  }
+  if (eventPaused) {
+    document.getElementById('event-paused-banner').style.display = 'flex';
   }
 
   document.getElementById('team-name-input').value = teamState.teamName;
@@ -1185,6 +1234,7 @@ function syncUiToState() {
   document.getElementById('grid-size').value = state.gridSize;
   document.getElementById('free-cell').checked = state.hasFreeCell;
   document.getElementById('end-date').value = state.endDate;
+  document.getElementById('end-time').value = state.endTime || '';
   document.getElementById('style-font-family').value = state.style.fontFamily || 'default';
   document.getElementById('style-accent-color').value = state.style.accentColor || '#c8aa6e';
   document.getElementById('style-app-bg-pattern').value = state.style.appBgPattern || 'grid';
@@ -1238,6 +1288,7 @@ document.getElementById('grid-size').addEventListener('change', e => {
 
 document.getElementById('free-cell').addEventListener('change', e => { state.hasFreeCell = e.target.checked; renderGrid(); applyStyle(); saveDraft(); });
 document.getElementById('end-date').addEventListener('change', e => { state.endDate = e.target.value; saveDraft(); });
+document.getElementById('end-time').addEventListener('change', e => { state.endTime = e.target.value; saveDraft(); });
 
 
 // App-thema
@@ -1388,7 +1439,7 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
   const payload = {
     v: 3, gridSize: state.gridSize, hasFreeCell: state.hasFreeCell,
     style: state.style, bonuses: state.bonuses, endDate: state.endDate,
-    rules: state.rules || '',
+    endTime: state.endTime || '', rules: state.rules || '',
     cells: state.cells.map(c => cellHasItems(c) ? {
       items: c.items.map(it => ({ name: it.name, points: it.points || 0 })),
       info: c.info || '', tilePoints: c.tilePoints || 0,
@@ -1462,6 +1513,7 @@ async function loadFromEvent(eventId) {
     if (loaded.style) Object.assign(state.style, loaded.style);
     if (loaded.bonuses) Object.assign(state.bonuses, loaded.bonuses);
     state.endDate = loaded.endDate || '';
+    state.endTime = loaded.endTime || '';
     state.rules = loaded.rules || '';
     if (Array.isArray(loaded.cells)) {
       state.cells = loaded.cells.map(c => c ? {
@@ -1470,6 +1522,8 @@ async function loadFromEvent(eventId) {
       } : null);
     }
     if (data.closed) eventClosed = true;
+    if (data.paused) eventPaused = true;
+    _eventCreatedAt = data.createdAt?.toDate ? data.createdAt.toDate() : null;
     state.playMode = true;
     isFbMode = true;
     fbEventId = eventId;
@@ -1639,6 +1693,13 @@ async function joinTeam(eventId, teamId) {
 
     if (fbUnsubWinners) fbUnsubWinners();
     fbUnsubWinners = fbListenWinners(eventId, handleWinnersUpdate);
+
+    if (fbUnsubPaused) fbUnsubPaused();
+    fbUnsubPaused = fbListenPaused(eventId, paused => {
+      eventPaused = paused;
+      const banner = document.getElementById('event-paused-banner');
+      if (banner) banner.style.display = paused ? 'flex' : 'none';
+    });
   } catch (err) {
     hideFbLoading();
     alert('Team laden mislukt: ' + err.message);
@@ -1656,6 +1717,7 @@ function applyCardUpdate(newCard) {
   if (newCard.style) Object.assign(state.style, newCard.style);
   if (newCard.bonuses) Object.assign(state.bonuses, newCard.bonuses);
   if (newCard.endDate !== undefined) state.endDate = newCard.endDate;
+  if (newCard.endTime !== undefined) state.endTime = newCard.endTime || '';
   if (newCard.rules !== undefined) { state.rules = newCard.rules || ''; updateRulesButton(); }
   resizeCells();
   state.crossed = state.crossed.map((arr, i) => {
@@ -1688,43 +1750,47 @@ function renderScoreboard(teams) {
   const n = state.gridSize;
   const totalTiles = n * n - (state.hasFreeCell ? 1 : 0);
   const el = document.getElementById('scoreboard-list');
-  const medals = ['🥇', '🥈', '🥉'];
-  const winnerIds = new Set(_eventWinners.map(w => w.teamId));
+  const winnerId = _eventWinners.length > 0 ? _eventWinners[0].teamId : null;
 
-  let html = '';
-  if (_eventWinners.length) {
-    html += `<div class="scoreboard-winners-section">
-      <div class="scoreboard-winners-label">Winnaars</div>`;
-    _eventWinners.forEach((w, i) => {
-      const medal = medals[i] || '🏅';
-      const time = new Date(w.completedAt).toLocaleTimeString('nl-NL', {hour:'2-digit', minute:'2-digit'});
-      const isYou = w.teamId === fbTeamId;
-      html += `<div class="scoreboard-winner-row${isYou ? ' scoreboard-you' : ''}">
-        <span class="winner-medal">${medal}</span>
-        <span class="winner-name">${escHtml(w.teamName)}${isYou ? ' <em>(jij)</em>' : ''}</span>
-        <span class="winner-time">${time}</span>
-      </div>`;
-    });
-    html += `</div>`;
-  }
+  // FLIP: record positions before update
+  const oldPositions = {};
+  el.querySelectorAll('[data-team-id]').forEach(row => {
+    oldPositions[row.dataset.teamId] = row.getBoundingClientRect().top;
+  });
 
-  if (!teams.length) { el.innerHTML = html + '<div class="score-empty">Geen teams</div>'; return; }
-  html += teams.map((t, i) => {
+  if (!teams.length) { el.innerHTML = '<div class="score-empty">Geen teams</div>'; return; }
+
+  el.innerHTML = teams.map((t, i) => {
     const isYou = t.id === fbTeamId;
-    const isWinner = winnerIds.has(t.id);
+    const isWinner = t.id === winnerId;
     const tiles = t.tilesComplete !== undefined ? t.tilesComplete : 0;
     const pct = totalTiles > 0 ? Math.round(tiles / totalTiles * 100) : 0;
     const rank = isWinner ? '👑' : `#${i + 1}`;
-    return `<div class="scoreboard-row${isYou ? ' scoreboard-you' : ''}${isWinner ? ' scoreboard-winner' : ''}">
+    const winnerTag = isWinner ? `<span class="scoreboard-winner-tag">WINNAAR</span>` : '';
+    return `<div class="scoreboard-row${isYou ? ' scoreboard-you' : ''}${isWinner ? ' scoreboard-winner' : ''}" data-team-id="${escHtml(t.id)}">
       <span class="scoreboard-rank">${rank}</span>
       <div class="scoreboard-info">
-        <div class="scoreboard-name">${escHtml(t.name)}${isYou ? ' <em>(jij)</em>' : ''}</div>
+        <div class="scoreboard-name">${escHtml(t.name)}${isYou ? ' <em>(jij)</em>' : ''}${winnerTag}</div>
         <div class="scoreboard-progress-bar"><div class="scoreboard-progress-fill" style="width:${pct}%"></div></div>
       </div>
       <span class="scoreboard-pts">${t.score || 0} pt</span>
     </div>`;
   }).join('');
-  el.innerHTML = html;
+
+  // FLIP: animate position changes
+  el.querySelectorAll('[data-team-id]').forEach(row => {
+    const id = row.dataset.teamId;
+    if (oldPositions[id] === undefined) return;
+    const newTop = row.getBoundingClientRect().top;
+    const delta = oldPositions[id] - newTop;
+    if (Math.abs(delta) < 2) return;
+    row.style.transition = 'none';
+    row.style.transform = `translateY(${delta}px)`;
+    requestAnimationFrame(() => {
+      row.style.transition = 'transform 0.5s cubic-bezier(0.22, 1, 0.36, 1)';
+      row.style.transform = '';
+    });
+  });
 }
 
 // ── Winner announcement ───────────────────────────
@@ -1778,6 +1844,7 @@ function handleWinnersUpdate(winners) {
     }
   });
   if (_lastKnownTeams.length) renderScoreboard(_lastKnownTeams);
+  if (winners.length > 0) freezeCountdownOnWin(winners[0]);
 }
 
 // ── Moderator view ────────────────────────────────
@@ -1988,15 +2055,25 @@ async function loadModView(eventId) {
     modView.style.display = 'flex';
     document.getElementById('mod-event-id').textContent = data.name || ('Event: ' + eventId);
 
-    const closeBtn  = document.getElementById('btn-close-event');
-    const reopenBtn = document.getElementById('btn-reopen-event');
-    const deleteBtn = document.getElementById('btn-delete-event');
+    const closeBtn      = document.getElementById('btn-close-event');
+    const reopenBtn     = document.getElementById('btn-reopen-event');
+    const deleteBtn     = document.getElementById('btn-delete-event');
+    const resumePauseBtn = document.getElementById('btn-resume-pause');
 
     function applyClosedState(closed) {
       closeBtn.style.display  = closed ? 'none' : '';
       reopenBtn.style.display = closed ? '' : 'none';
     }
     applyClosedState(!!data.closed);
+
+    resumePauseBtn.style.display = data.paused ? '' : 'none';
+    fbListenPaused(eventId, paused => {
+      resumePauseBtn.style.display = paused ? '' : 'none';
+    });
+    resumePauseBtn.addEventListener('click', async () => {
+      try { await fbResumeEvent(eventId); }
+      catch (err) { alert('Hervat mislukt: ' + err.message); }
+    });
 
     closeBtn.addEventListener('click', async () => {
       if (!confirm('Weet je zeker dat je dit event wil sluiten? Spelers kunnen dan niet meer afvinken.')) return;
@@ -2421,6 +2498,7 @@ function saveDraft() {
       style: state.style,
       bonuses: state.bonuses,
       endDate: state.endDate,
+      endTime: state.endTime || '',
       rules: state.rules || '',
       cells: state.cells.map(c => cellHasItems(c) ? {
         items: c.items.map(it => ({ name: it.name, points: it.points || 0 })),

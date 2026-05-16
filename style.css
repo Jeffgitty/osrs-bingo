@@ -1580,6 +1580,8 @@ label.pts-label {
   background: var(--bg-dark);
   border-radius: 5px;
   font-size: 13px;
+  will-change: transform;
+  transition: border-color 0.3s, background 0.3s;
 }
 
 .scoreboard-you {
@@ -2103,6 +2105,25 @@ label.pts-label {
   flex-shrink: 0;
 }
 
+.event-paused-banner {
+  width: 100%;
+  background: #1a1200;
+  border-bottom: 1px solid rgba(200, 170, 110, 0.5);
+  color: var(--accent);
+  padding: 10px 24px;
+  font-size: 13px;
+  font-weight: 600;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.countdown-elapsed {
+  font-size: 11px;
+  color: var(--accent);
+  margin-top: 6px;
+  line-height: 1.4;
+}
+
 /* ── Editor landing ─────────────────────────────── */
 .editor-landing-box {
   background: #1d1408;
@@ -2602,12 +2623,33 @@ label.pts-label {
 }
 
 .scoreboard-row.scoreboard-winner {
-  border-color: rgba(255, 215, 0, 0.4);
-  background: rgba(255, 215, 0, 0.06);
+  border: 1px solid rgba(255, 215, 0, 0.6);
+  background: linear-gradient(135deg, rgba(255,215,0,0.12) 0%, rgba(180,140,0,0.05) 100%);
 }
 
 .scoreboard-row.scoreboard-winner .scoreboard-rank {
   color: #ffd700;
+  font-size: 16px;
+}
+
+.scoreboard-row.scoreboard-winner .scoreboard-name {
+  color: #ffd700;
+}
+
+.scoreboard-row.scoreboard-winner .scoreboard-pts {
+  color: #ffd700;
+}
+
+.scoreboard-winner-tag {
+  font-size: 10px;
+  background: rgba(255, 215, 0, 0.2);
+  color: #ffd700;
+  border: 1px solid rgba(255, 215, 0, 0.4);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  flex-shrink: 0;
 }
 
 /* ── Moderator winners section ───────────────────── */

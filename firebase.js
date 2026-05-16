@@ -139,12 +139,27 @@ async function fbRecordWin(eventId, teamId, teamName) {
   const ref = db.collection('events').doc(eventId);
   const doc = await ref.get();
   const existing = (doc.data() || {}).winners || [];
-  if (existing.some(w => w.teamId === teamId)) return;
+  if (existing.length > 0) return; // één winnaar
   await ref.update({
     winners: firebase.firestore.FieldValue.arrayUnion({
       teamId, teamName, completedAt: new Date().toISOString(),
     }),
   });
+}
+
+async function fbPauseEvent(eventId) {
+  await fbEnsureAuth();
+  await db.collection('events').doc(eventId).update({ paused: true });
+}
+
+async function fbResumeEvent(eventId) {
+  await fbEnsureAuth();
+  await db.collection('events').doc(eventId).update({ paused: false });
+}
+
+function fbListenPaused(eventId, callback) {
+  return db.collection('events').doc(eventId)
+    .onSnapshot(doc => { if (doc.exists) callback(!!doc.data().paused); });
 }
 
 function fbListenWinners(eventId, callback) {

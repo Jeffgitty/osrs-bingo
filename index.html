@@ -32,6 +32,7 @@
             <input type="checkbox" id="free-cell" checked> Vrije middelste cel
           </label>
           <label>Einddatum<input type="date" id="end-date"></label>
+          <label>Eindtijd<input type="time" id="end-time" value="23:59"></label>
         </div>
       </div>
 
@@ -159,6 +160,10 @@
       <div id="event-closed-banner" class="event-closed-banner" style="display:none">
         &#128683; Dit event is afgesloten &mdash; afvinken is niet meer mogelijk.
       </div>
+      <!-- Event paused banner (play mode only) -->
+      <div id="event-paused-banner" class="event-paused-banner" style="display:none">
+        &#9208; Spel gepauzeerd &mdash; wacht op de moderator om verder te gaan.
+      </div>
 
       <!-- Play bar (play mode only) -->
       <div id="play-bar" style="display:none">
@@ -198,6 +203,7 @@
             <div class="widget-title">&#9201; Tijd resterend</div>
             <div id="countdown-display" class="countdown-display">—</div>
             <div id="countdown-end-label" class="countdown-end-label"></div>
+            <div id="countdown-elapsed" class="countdown-elapsed" style="display:none"></div>
           </div>
           <div class="play-widget">
             <div class="widget-title">&#127942; Punten &nbsp;<span id="score-total" class="score-total-badge">0</span></div>
@@ -279,6 +285,7 @@
         <button id="mod-tab-overzicht" class="mod-tab">Overzicht</button>
       </div>
       <span id="mod-team-count" class="mod-team-count"></span>
+      <button id="btn-resume-pause" class="btn-secondary btn-sm" style="margin-bottom:0;display:none">&#9654; Hervat</button>
       <button id="btn-close-event" class="btn-danger btn-sm" style="margin-bottom:0">&#128683; Sluit event</button>
       <button id="btn-reopen-event" class="btn-secondary btn-sm" style="margin-bottom:0;display:none">&#9654; Heropenen</button>
       <button id="btn-delete-event" class="btn-danger btn-sm btn-delete" style="margin-bottom:0">&#128465; Verwijder</button>
