@@ -143,6 +143,14 @@
         </div>
       </div>
 
+      <div class="panel panel-collapsed" data-collapsible>
+        <h2>Spelinfo <button class="panel-toggle">&#8250;</button></h2>
+        <div class="panel-body">
+          <p class="hint" style="margin-top:0">Spelregels, uitleg of links. Zichtbaar voor spelers via de &#9432; knop op de speelkaart.</p>
+          <textarea id="rules-textarea" rows="7" placeholder="Bijv. spelregels, hoe punten te verdienen, drop-locaties..."></textarea>
+        </div>
+      </div>
+
     </aside>
 
     <!-- ── Center ── -->
@@ -294,6 +302,19 @@
     <div id="mod-panel-overzicht" class="mod-panel" style="display:none">
       <div id="mod-winners-section" class="mod-winners-section" style="display:none"></div>
       <div id="mod-teams-grid" class="mod-teams-grid"></div>
+    </div>
+  </div>
+
+  <!-- ── Spelinfo floating button & modal (play mode) ── -->
+  <button id="btn-rules" class="rules-float-btn" style="display:none" title="Spelinfo / regels">&#9432;</button>
+
+  <div id="rules-modal" class="rules-modal" style="display:none">
+    <div class="rules-modal-box">
+      <div class="rules-modal-header">
+        <span class="rules-modal-title">&#9432; Spelinfo</span>
+        <button id="rules-modal-close" class="rules-modal-close">&#215;</button>
+      </div>
+      <div id="rules-modal-content" class="rules-modal-content"></div>
     </div>
   </div>
 

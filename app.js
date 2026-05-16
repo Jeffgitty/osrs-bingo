@@ -27,6 +27,7 @@ const state = {
   crossed: [],
   bonuses: { row: 0, col: 0, diagLeft: 0, diagRight: 0, fullCard: 0 },
   endDate: '',
+  rules: '',
 };
 
 // Team state — persisted separately in localStorage
@@ -842,6 +843,7 @@ async function applyLoadedState(loaded) {
   if (loaded.style) Object.assign(state.style, loaded.style);
   if (loaded.bonuses) Object.assign(state.bonuses, loaded.bonuses);
   state.endDate = loaded.endDate || '';
+  state.rules = loaded.rules || '';
 
   state.cells = (Array.isArray(loaded.cells) ? loaded.cells : []).map(c =>
     c ? { items: c.items.map(it => ({ name: it.name, imageUrl: '', points: it.points || 0 })),
@@ -1109,6 +1111,7 @@ async function loadFromHash() {
     if (loaded.style) Object.assign(state.style, loaded.style);
     if (loaded.bonuses) Object.assign(state.bonuses, loaded.bonuses);
     state.endDate = loaded.endDate || '';
+    state.rules = loaded.rules || '';
 
     if ((loaded.v === 2 || loaded.v === 3) && Array.isArray(loaded.cells)) {
       state.cells = loaded.cells.map(c => c ? {
@@ -1151,7 +1154,30 @@ function activatePlayMode() {
   updatePointsLegend();
   updateCharts();
   initCompletionTracking();
+  updateRulesButton();
 }
+
+// ── Spelinfo (rules) ──────────────────────────────
+
+function updateRulesButton() {
+  const btn = document.getElementById('btn-rules');
+  if (btn) btn.style.display = state.playMode && state.rules ? 'block' : 'none';
+}
+
+document.getElementById('btn-rules').addEventListener('click', () => {
+  const content = document.getElementById('rules-modal-content');
+  content.textContent = state.rules;
+  document.getElementById('rules-modal').style.display = 'flex';
+});
+
+document.getElementById('rules-modal-close').addEventListener('click', () => {
+  document.getElementById('rules-modal').style.display = 'none';
+});
+
+document.getElementById('rules-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('rules-modal'))
+    document.getElementById('rules-modal').style.display = 'none';
+});
 
 // ── Sync inputs → state ───────────────────────────
 
@@ -1190,6 +1216,8 @@ function syncUiToState() {
   document.getElementById('bonus-diag-left').value = state.bonuses.diagLeft;
   document.getElementById('bonus-diag-right').value = state.bonuses.diagRight;
   document.getElementById('bonus-fullcard').value = state.bonuses.fullCard;
+  const rulesEl = document.getElementById('rules-textarea');
+  if (rulesEl) rulesEl.value = state.rules || '';
 }
 
 // ── Event listeners ───────────────────────────────
@@ -1302,12 +1330,19 @@ document.getElementById('info-textarea').addEventListener('input', e => {
   const idx = state.selectedCell; if (idx === null) return;
   if (!state.cells[idx]) state.cells[idx] = { items: [], info: '', tilePoints: 0 };
   state.cells[idx].info = e.target.value; refreshCell(idx);
+  saveDraft();
 });
 
 document.getElementById('tile-points-input').addEventListener('input', e => {
   const idx = state.selectedCell; if (idx === null) return;
   if (!state.cells[idx]) state.cells[idx] = { items: [], info: '', tilePoints: 0 };
   state.cells[idx].tilePoints = Math.max(0, parseInt(e.target.value,10) || 0); refreshCell(idx);
+  saveDraft();
+});
+
+document.getElementById('rules-textarea').addEventListener('input', e => {
+  state.rules = e.target.value;
+  saveDraft();
 });
 
 // ── Connection handling ───────────────────────────
@@ -1353,6 +1388,7 @@ document.getElementById('btn-publish-event').addEventListener('click', async () 
   const payload = {
     v: 3, gridSize: state.gridSize, hasFreeCell: state.hasFreeCell,
     style: state.style, bonuses: state.bonuses, endDate: state.endDate,
+    rules: state.rules || '',
     cells: state.cells.map(c => cellHasItems(c) ? {
       items: c.items.map(it => ({ name: it.name, points: it.points || 0 })),
       info: c.info || '', tilePoints: c.tilePoints || 0,
@@ -1426,6 +1462,7 @@ async function loadFromEvent(eventId) {
     if (loaded.style) Object.assign(state.style, loaded.style);
     if (loaded.bonuses) Object.assign(state.bonuses, loaded.bonuses);
     state.endDate = loaded.endDate || '';
+    state.rules = loaded.rules || '';
     if (Array.isArray(loaded.cells)) {
       state.cells = loaded.cells.map(c => c ? {
         items: c.items.map(it => ({ name: it.name, imageUrl: '', points: it.points || 0 })),
@@ -1619,6 +1656,7 @@ function applyCardUpdate(newCard) {
   if (newCard.style) Object.assign(state.style, newCard.style);
   if (newCard.bonuses) Object.assign(state.bonuses, newCard.bonuses);
   if (newCard.endDate !== undefined) state.endDate = newCard.endDate;
+  if (newCard.rules !== undefined) { state.rules = newCard.rules || ''; updateRulesButton(); }
   resizeCells();
   state.crossed = state.crossed.map((arr, i) => {
     const cell = state.cells[i];
@@ -2383,6 +2421,7 @@ function saveDraft() {
       style: state.style,
       bonuses: state.bonuses,
       endDate: state.endDate,
+      rules: state.rules || '',
       cells: state.cells.map(c => cellHasItems(c) ? {
         items: c.items.map(it => ({ name: it.name, points: it.points || 0 })),
         info: c.info || '',

@@ -596,24 +596,26 @@ label select:focus { border-color: var(--accent); }
   position: absolute;
   bottom: 3px;
   right: 3px;
-  width: 16px;
-  height: 16px;
-  background: rgba(200, 170, 110, 0.9);
-  border: none;
+  width: 20px;
+  height: 20px;
+  background: rgba(200, 170, 110, 0.95);
+  border: 1px solid rgba(200, 170, 110, 0.5);
   border-radius: 50%;
   color: #000;
-  font-size: 10px;
-  font-weight: 700;
-  line-height: 16px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 18px;
   text-align: center;
   cursor: pointer;
   padding: 0;
-  z-index: 2;
-  transition: background 0.1s;
+  z-index: 3;
+  transition: background 0.1s, transform 0.1s;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.5);
 }
 
 .cell-info-btn:hover {
-  background: var(--accent);
+  background: #ffd700;
+  transform: scale(1.15);
 }
 
 /* ── Info popup ──────────────────────────────────── */
@@ -2665,4 +2667,111 @@ label.pts-label {
 .mod-winner-badge {
   font-size: 16px;
   margin-right: 4px;
+}
+
+/* ── Spelinfo floating button ────────────────────── */
+.rules-float-btn {
+  position: fixed;
+  bottom: 24px;
+  left: 24px;
+  z-index: 450;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--accent);
+  border: 2px solid rgba(255,255,255,0.15);
+  color: #000;
+  font-size: 22px;
+  font-weight: 700;
+  line-height: 40px;
+  text-align: center;
+  cursor: pointer;
+  padding: 0;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.6);
+  transition: background 0.15s, transform 0.15s;
+}
+.rules-float-btn:hover {
+  background: #ffd700;
+  transform: scale(1.1);
+}
+
+/* ── Spelinfo modal ───────────────────────────────── */
+.rules-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 460;
+  background: rgba(0,0,0,0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.rules-modal-box {
+  background: #1a1206;
+  border: 1px solid var(--accent);
+  border-radius: 10px;
+  width: min(560px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.85);
+  overflow: hidden;
+}
+
+.rules-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--panel-border);
+  flex-shrink: 0;
+}
+
+.rules-modal-title {
+  font-family: 'Cinzel', serif;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--accent);
+  letter-spacing: 0.5px;
+}
+
+.rules-modal-close {
+  background: none;
+  border: none;
+  color: var(--text-muted);
+  font-size: 20px;
+  cursor: pointer;
+  padding: 2px 6px;
+  line-height: 1;
+}
+.rules-modal-close:hover { color: var(--text); }
+
+.rules-modal-content {
+  padding: 18px 20px;
+  overflow-y: auto;
+  font-size: 14px;
+  line-height: 1.65;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* Rules textarea in editor */
+#rules-textarea {
+  width: 100%;
+  background: var(--input-bg, #160f04);
+  border: 1px solid var(--panel-border);
+  color: var(--text);
+  border-radius: 5px;
+  padding: 8px 10px;
+  font-size: 13px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+  margin-top: 4px;
+  box-sizing: border-box;
+}
+#rules-textarea:focus {
+  outline: none;
+  border-color: var(--accent);
 }
