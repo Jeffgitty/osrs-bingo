@@ -269,8 +269,17 @@
           </label>
         </div>
 
-        <input type="text" id="search-input" placeholder="Zoek en voeg item toe&hellip;" disabled autocomplete="off">
+        <input type="text" id="search-input" placeholder="Zoek een item&hellip;" disabled autocomplete="off">
         <div id="search-results"></div>
+
+        <div id="staged-item-wrap" style="display:none" class="staged-item-wrap">
+          <div id="staged-item-preview" class="staged-item-preview"></div>
+          <label class="info-label pts-label">
+            Item punten
+            <input type="number" id="staged-item-points" min="0" value="0" class="pts-input staged-pts-input">
+          </label>
+          <button id="btn-add-staged" class="btn-primary btn-add-staged" disabled>+ Toevoegen aan tile</button>
+        </div>
       </div>
     </aside>
 

@@ -67,6 +67,9 @@ let _editingEventId = null;
 const DRAFT_KEY = 'bingo-editor-draft';
 let _draftTimer = null;
 
+// ── Staged item (search panel) ────────────────────
+let stagedItem = null; // { title, row }
+
 // ── Completion tracking ───────────────────────────
 let _prevLineCount = 0;
 let _prevFullCard = false;
@@ -516,12 +519,10 @@ function selectCell(index) {
   state.selectedCell = index;
   bingoCard.querySelectorAll('.bingo-cell').forEach((el, i) => el.classList.toggle('selected', i === index));
   searchInput.disabled = false;
-  searchInput.value = '';
-  searchResults.innerHTML = '';
   document.getElementById('info-field-wrap').style.display = 'block';
   document.getElementById('tile-points-wrap').style.display = 'block';
   updateSearchPanel();
-  searchInput.focus();
+  updateAddBtn();
 }
 
 function updateSearchPanel() {
@@ -760,6 +761,8 @@ function setBackground(dataUrl) {
 
 let searchTimeout = null;
 
+document.getElementById('btn-add-staged').addEventListener('click', addStagedItem);
+
 searchInput.addEventListener('input', () => {
   clearTimeout(searchTimeout);
   const q = searchInput.value.trim();
@@ -786,25 +789,57 @@ function buildResultRow(title) {
   const nameEl = document.createElement('span'); nameEl.className = 'result-name'; nameEl.textContent = title;
   const status = document.createElement('span'); status.className = 'result-status'; status.textContent = '⏳';
   row.appendChild(imgWrap); row.appendChild(nameEl); row.appendChild(status);
-  row.addEventListener('click', () => assignItem(title, row));
+  row.addEventListener('click', () => stageItem(title, row));
   fetchItemImageAsDataUrl(title).then(url => {
     status.textContent = '';
     if (url) { const img = document.createElement('img'); img.src = url; img.alt = title; imgWrap.appendChild(img); row._imageUrl = url; }
     else { imgWrap.textContent = '?'; imgWrap.style.color = 'var(--text-muted)'; }
+    if (stagedItem && stagedItem.row === row) renderStagedPreview();
   }).catch(() => { status.textContent = ''; });
   return row;
 }
 
-async function assignItem(title, row) {
-  if (state.selectedCell === null) return;
+function stageItem(title, row) {
+  searchResults.querySelectorAll('.search-result').forEach(r => r.classList.remove('staged'));
+  row.classList.add('staged');
+  stagedItem = { title, row };
+  renderStagedPreview();
+  updateAddBtn();
+}
+
+function renderStagedPreview() {
+  const preview = document.getElementById('staged-item-preview');
+  preview.innerHTML = '';
+  if (!stagedItem) return;
+  const { title, row } = stagedItem;
+  if (row._imageUrl) {
+    const img = document.createElement('img');
+    img.src = row._imageUrl; img.alt = title;
+    preview.appendChild(img);
+  }
+  const nameEl = document.createElement('span');
+  nameEl.textContent = title;
+  preview.appendChild(nameEl);
+  document.getElementById('staged-item-wrap').style.display = 'block';
+}
+
+function updateAddBtn() {
+  const btn = document.getElementById('btn-add-staged');
+  if (btn) btn.disabled = !stagedItem || state.selectedCell === null;
+}
+
+async function addStagedItem() {
+  if (!stagedItem || state.selectedCell === null) return;
+  const { title, row } = stagedItem;
   const idx = state.selectedCell;
+  const points = Math.max(0, parseInt(document.getElementById('staged-item-points').value, 10) || 0);
   let imageUrl = row._imageUrl;
   if (imageUrl === undefined) {
     row._loadingPromise = row._loadingPromise || fetchItemImageAsDataUrl(title);
     imageUrl = await row._loadingPromise;
   }
   if (!state.cells[idx]) state.cells[idx] = { items: [], info: '', tilePoints: 0 };
-  state.cells[idx].items.push({ name: title, imageUrl: imageUrl || '', points: 0 });
+  state.cells[idx].items.push({ name: title, imageUrl: imageUrl || '', points });
   state.crossed[idx] = state.cells[idx].items.map(() => ({ checked: false, date: null }));
   refreshCell(idx); updateSearchPanel();
   saveDraft();
@@ -1277,8 +1312,11 @@ document.getElementById('grid-size').addEventListener('change', e => {
   if (!Number.isInteger(val) || val < 2) return;
   state.gridSize = val; state.selectedCell = null;
   searchInput.disabled = true;
+  searchInput.value = '';
   searchHint.textContent = 'Klik een cel om items toe te voegen.';
   searchResults.innerHTML = '';
+  stagedItem = null;
+  document.getElementById('staged-item-wrap').style.display = 'none';
   document.getElementById('info-field-wrap').style.display = 'none';
   document.getElementById('tile-points-wrap').style.display = 'none';
   document.getElementById('current-items-panel').innerHTML = '';

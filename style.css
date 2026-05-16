@@ -477,6 +477,50 @@ label select:focus { border-color: var(--accent); }
   flex-shrink: 0;
 }
 
+.search-result.staged {
+  background: #261c07;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+
+.staged-item-wrap {
+  margin-top: 10px;
+  border-top: 1px solid var(--panel-border);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.staged-item-preview {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(200,170,110,0.07);
+  border: 1px solid var(--accent);
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.staged-item-preview img {
+  width: 28px;
+  height: 28px;
+  object-fit: contain;
+  image-rendering: pixelated;
+  flex-shrink: 0;
+}
+
+.staged-pts-input { width: 52px; }
+
+.btn-add-staged {
+  width: 100%;
+  padding: 8px;
+  font-size: 13px;
+}
+
 .search-status {
   font-size: 12px;
   color: var(--text-muted);
