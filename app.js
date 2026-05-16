@@ -2599,6 +2599,11 @@ function showEditorLanding() {
       overlay.style.display = 'none';
       showEditorMyEvents(resolve);
     };
+
+    document.getElementById('btn-landing-published').onclick = () => {
+      overlay.style.display = 'none';
+      showPublishedEvents(resolve);
+    };
   });
 }
 
@@ -2705,6 +2710,115 @@ function buildEditorEventRow(stored, firebaseData, overlay, resolveEditor) {
     }
   });
   actions.appendChild(delBtn);
+
+  row.appendChild(actions);
+  return row;
+}
+
+// ── Published events (Firebase) ───────────────────
+
+async function showPublishedEvents(resolveEditor) {
+  const overlay = document.getElementById('published-events-overlay');
+  overlay.style.display = 'flex';
+  const loadingEl = document.getElementById('published-events-loading');
+  const emptyEl   = document.getElementById('published-events-empty');
+  const listEl    = document.getElementById('published-events-list');
+  loadingEl.style.display = 'block';
+  emptyEl.style.display = 'none';
+  listEl.innerHTML = '';
+
+  document.getElementById('btn-published-back').onclick = () => {
+    overlay.style.display = 'none';
+    showEditorLanding().then(resolveEditor);
+  };
+
+  let myEventIds = new Set();
+  try {
+    const myEvs = JSON.parse(localStorage.getItem('bingo-my-events') || '[]');
+    myEvs.forEach(e => myEventIds.add(e.id));
+  } catch {}
+
+  try {
+    const events = await fbListAllEvents(30);
+    loadingEl.style.display = 'none';
+    if (!events.length) {
+      emptyEl.style.display = 'block';
+      return;
+    }
+    events.forEach(ev => listEl.appendChild(buildPublishedEventRow(ev, myEventIds, overlay, resolveEditor)));
+  } catch (err) {
+    loadingEl.textContent = 'Laden mislukt: ' + err.message;
+  }
+}
+
+function buildPublishedEventRow(ev, myEventIds, overlay, resolveEditor) {
+  const row = document.createElement('div');
+  row.className = 'editor-event-row';
+
+  const info = document.createElement('div');
+  info.className = 'editor-event-info';
+
+  const nameEl = document.createElement('div');
+  nameEl.className = 'editor-event-name';
+  nameEl.textContent = ev.name || ev.id;
+  info.appendChild(nameEl);
+
+  const metaEl = document.createElement('div');
+  metaEl.className = 'editor-event-meta';
+  const ts = ev.createdAt;
+  const d = ts && ts.toDate ? ts.toDate() : new Date(ts || 0);
+  metaEl.textContent = `${d.getDate()}-${d.getMonth()+1}-${d.getFullYear()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  info.appendChild(metaEl);
+
+  const badge = document.createElement('span');
+  badge.className = 'editor-event-badge' + (ev.closed ? ' closed' : '');
+  badge.textContent = ev.closed ? 'Gesloten' : 'Actief';
+  info.appendChild(badge);
+
+  row.appendChild(info);
+
+  const actions = document.createElement('div');
+  actions.className = 'editor-event-actions';
+
+  const base = location.origin + location.pathname;
+  const playerUrl = base + '?event=' + ev.id;
+  const modUrl    = base + '?event=' + ev.id + '&mod=1';
+
+  const copyBtn = document.createElement('button');
+  copyBtn.className = 'btn-secondary btn-sm';
+  copyBtn.title = 'Kopieer spelers link';
+  copyBtn.innerHTML = '&#128279; Link';
+  copyBtn.addEventListener('click', () => {
+    navigator.clipboard.writeText(playerUrl).catch(() => prompt('Kopieer:', playerUrl));
+    copyBtn.textContent = '✓';
+    setTimeout(() => { copyBtn.innerHTML = '&#128279; Link'; }, 1500);
+  });
+  actions.appendChild(copyBtn);
+
+  if (myEventIds.has(ev.id)) {
+    const modLink = document.createElement('a');
+    modLink.href = modUrl;
+    modLink.target = '_blank';
+    modLink.className = 'btn-secondary btn-sm';
+    modLink.title = 'Open moderator view';
+    modLink.innerHTML = '&#9876; Mod';
+    actions.appendChild(modLink);
+
+    if (ev.card) {
+      const editBtn = document.createElement('button');
+      editBtn.className = 'btn-secondary btn-sm';
+      editBtn.textContent = '✏ Bewerken';
+      editBtn.addEventListener('click', async () => {
+        overlay.style.display = 'none';
+        _editingEventId = ev.id;
+        document.getElementById('event-name-input').value = ev.name || '';
+        setEditModeLabel(ev.name || ev.id);
+        await applyLoadedState(ev.card);
+        resolveEditor();
+      });
+      actions.appendChild(editBtn);
+    }
+  }
 
   row.appendChild(actions);
   return row;

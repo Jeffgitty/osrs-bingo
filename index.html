@@ -426,6 +426,20 @@
       <div class="editor-landing-title">&#9876; OSRS Bingo Editor</div>
       <button id="btn-landing-new" class="btn-primary editor-landing-btn">+ Nieuw event aanmaken</button>
       <button id="btn-landing-my-events" class="btn-secondary editor-landing-btn">&#128203; Mijn events</button>
+      <button id="btn-landing-published" class="btn-secondary editor-landing-btn">&#127760; Gepubliceerde events</button>
+    </div>
+  </div>
+
+  <!-- Published events overlay -->
+  <div id="published-events-overlay" class="fb-overlay" style="display:none">
+    <div class="editor-events-box">
+      <div class="editor-events-header">
+        <div class="editor-events-title">&#127760; Gepubliceerde events</div>
+        <button id="btn-published-back" class="btn-secondary btn-sm">&#8592; Terug</button>
+      </div>
+      <div id="published-events-loading" class="editor-events-loading" style="display:none">Events laden...</div>
+      <div id="published-events-list" class="editor-events-list"></div>
+      <div id="published-events-empty" class="editor-events-empty" style="display:none">Geen gepubliceerde events gevonden.</div>
     </div>
   </div>
 

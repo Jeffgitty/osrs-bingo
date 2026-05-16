@@ -166,3 +166,11 @@ function fbListenWinners(eventId, callback) {
   return db.collection('events').doc(eventId)
     .onSnapshot(doc => { if (doc.exists) callback(doc.data().winners || []); });
 }
+
+async function fbListAllEvents(limitCount) {
+  const snap = await db.collection('events')
+    .orderBy('createdAt', 'desc')
+    .limit(limitCount || 30)
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
