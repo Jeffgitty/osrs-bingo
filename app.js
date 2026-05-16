@@ -1696,21 +1696,25 @@ async function joinTeam(eventId, teamId) {
     fbUnsubWinners = fbListenWinners(eventId, handleWinnersUpdate);
 
     if (fbUnsubPaused) fbUnsubPaused();
+    let _pauseListenerFired = false;
     fbUnsubPaused = fbListenPaused(eventId, paused => {
+      const wasPaused = eventPaused;
       eventPaused = paused;
       const banner = document.getElementById('event-paused-banner');
       if (banner) banner.style.display = paused ? 'flex' : 'none';
-      if (!paused) {
+      // Only run resume logic after a real pause (not on initial snapshot fire)
+      if (!paused && _pauseListenerFired && wasPaused) {
         _fbWinRecorded = false;
         _eventWinners = [];
         _announcedWinnerIds = new Set();
         const elapsedEl = document.getElementById('countdown-elapsed');
         if (elapsedEl) { elapsedEl.style.display = 'none'; elapsedEl.textContent = ''; }
         const annEl = document.getElementById('winner-announcement');
-        if (annEl) annEl.style.display = 'none';
+        if (annEl) annEl.classList.remove('winner-announcement-active');
         startCountdown();
         if (_lastKnownTeams.length) renderScoreboard(_lastKnownTeams);
       }
+      _pauseListenerFired = true;
     });
   } catch (err) {
     hideFbLoading();
