@@ -48,6 +48,7 @@ async function fbDeleteEvent(eventId) {
 }
 
 async function fbLoadEvent(eventId) {
+  await fbEnsureAuth();
   const doc = await db.collection('events').doc(eventId).get();
   if (!doc.exists) return null;
   return doc.data();
@@ -168,6 +169,7 @@ function fbListenWinners(eventId, callback) {
 }
 
 async function fbListAllEvents(limitCount) {
+  await fbEnsureAuth();
   const snap = await db.collection('events')
     .orderBy('createdAt', 'desc')
     .limit(limitCount || 30)
